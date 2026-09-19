@@ -51,7 +51,11 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
                 .oauth2Login(oauth2 -> oauth2
-                        .defaultSuccessUrl("/ui/store.html", true)
+                        .defaultSuccessUrl("/store.html", true)
+                )
+                .logout(logout -> logout
+                        .logoutSuccessUrl("/store.html")
+                        .permitAll()
                 );
 
         return http.build();

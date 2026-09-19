@@ -89,5 +89,5 @@ DELETE http://localhost:8081/api/orders/{{new_order_id}}
 Authorization: Bearer {{admin_token}}
 
 ###
-PATCH http://localhost:8081/api/orders/{{new_order_id}}/status?newStatus=COMPLETED
+PATCH http://localhost:8081/api/orders/{{new_order_id}}/status?newStatus=DELIVERY
 Authorization: Bearer {{admin_token}}
