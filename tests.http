@@ -84,6 +84,10 @@ Authorization: Bearer {{user_token}}
 DELETE http://localhost:8081/api/products/{{new_product_id}}
 Authorization: Bearer {{admin_token}}
 
-###
+### Видалення замовлення адміністратором
 DELETE http://localhost:8081/api/orders/{{new_order_id}}
+Authorization: Bearer {{admin_token}}
+
+###
+PATCH http://localhost:8081/api/orders/{{new_order_id}}/status?newStatus=COMPLETED
 Authorization: Bearer {{admin_token}}

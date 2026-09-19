@@ -106,4 +106,21 @@ public class OrderService {
         }
         return subtotal;
     }
+
+    @Transactional
+    public void deleteOrder(Integer orderID) {
+        Order order = orderRepository.findById(orderID)
+                .orElseThrow(() -> new OrderNotFoundException(orderID));
+
+        orderRepository.delete(order);
+    }
+
+    @Transactional
+    public void updateOrderStatus(Integer orderID, OrderStatus newStatus) {
+        Order order = orderRepository.findById(orderID)
+                .orElseThrow(() -> new OrderNotFoundException(orderID));
+
+        order.setStatus(newStatus);
+        orderRepository.save(order);
+    }
 }
