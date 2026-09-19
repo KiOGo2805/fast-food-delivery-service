@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderMapperImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">car-parts</a> &gt; <a href="index.source.html" class="el_package">com.java.carparts.domain.mapper</a> &gt; <span class="el_source">OrderMapperImpl.java</span></div><h1>OrderMapperImpl.java</h1><pre class="source lang-java linenums">package com.java.carparts.domain.mapper;
+
+import com.java.carparts.domain.dto.OrderItemResponse;
+import com.java.carparts.domain.dto.OrderResponse;
+import com.java.carparts.domain.model.Order;
+import com.java.carparts.domain.model.OrderItem;
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.processing.Generated;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+@Generated(
+    value = &quot;org.mapstruct.ap.MappingProcessor&quot;,
+    date = &quot;2026-09-10T19:16:25+0300&quot;,
+    comments = &quot;version: 1.6.3, compiler: javac, environment: Java 23.0.2 (Oracle Corporation)&quot;
+)
+@Component
+<span class="fc" id="L19">public class OrderMapperImpl implements OrderMapper {</span>
+
+    @Autowired
+    private OrderItemMapper orderItemMapper;
+
+    @Override
+    public OrderResponse toResponse(Order order) {
+<span class="pc bpc" id="L26" title="1 of 2 branches missed.">        if ( order == null ) {</span>
+<span class="nc" id="L27">            return null;</span>
+        }
+
+<span class="fc" id="L30">        OrderResponse orderResponse = new OrderResponse();</span>
+
+<span class="fc" id="L32">        orderResponse.setId( order.getId() );</span>
+<span class="fc" id="L33">        orderResponse.setItems( orderItemListToOrderItemResponseList( order.getItems() ) );</span>
+<span class="fc" id="L34">        orderResponse.setTotalPrice( order.getTotalPrice() );</span>
+<span class="fc" id="L35">        orderResponse.setStatus( order.getStatus() );</span>
+<span class="fc" id="L36">        orderResponse.setCreatedAt( order.getCreatedAt() );</span>
+
+<span class="fc" id="L38">        return orderResponse;</span>
+    }
+
+    protected List&lt;OrderItemResponse&gt; orderItemListToOrderItemResponseList(List&lt;OrderItem&gt; list) {
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">        if ( list == null ) {</span>
+<span class="nc" id="L43">            return null;</span>
+        }
+
+<span class="fc" id="L46">        List&lt;OrderItemResponse&gt; list1 = new ArrayList&lt;OrderItemResponse&gt;( list.size() );</span>
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        for ( OrderItem orderItem : list ) {</span>
+<span class="fc" id="L48">            list1.add( orderItemMapper.toResponse( orderItem ) );</span>
+<span class="fc" id="L49">        }</span>
+
+<span class="fc" id="L51">        return list1;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Доставка фастфуду — Demo UI</title>
+<style>
+  body { font-family: monospace; max-width: 900px; margin: 40px auto; padding: 0 16px; }
+  button { padding: 6px 10px; cursor: pointer; margin: 2px; }
+  input { padding: 6px; width: 60px; }
+  pre { background: #f0f0f0; padding: 12px; white-space: pre-wrap; word-break: break-all; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  td, th { border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 14px; }
+  h1 { font-size: 18px; }
+  h2 { font-size: 15px; margin-top: 28px; }
+  .status { font-size: 13px; color: #555; }
+  .empty { color: #888; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>Доставка фастфуду (demo UI)</h1>
+<p class="status" id="loginStatus">Checking login status...</p>
+<button onclick="login()">Log in</button>
+<button onclick="logout()">Log out</button>
+
+<h2>1. Browse products (public - no login needed)</h2>
+<button onclick="loadProducts()">Load products</button>
+<table id="productsTable">
+  <thead><tr><th>ID</th><th>Назва</th><th>Категорія</th><th>Ціна</th><th>Залишок</th><th>К-ть</th><th></th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<h2>2. Кошик</h2>
+<div style="margin-bottom: 10px;">
+  <label>Адреса доставки: <input type="text" id="deliveryAddress" style="width: 300px;"></label><br>
+  <label><input type="checkbox" id="noCutlery"> Без столових приборів</label>
+</div>
+<table id="cartTable">
+  <thead><tr><th>Товар</th><th>К-ть</th><th></th></tr></thead>
+  <tbody><tr><td colspan="3" class="empty">Кошик порожній</td></tr></tbody>
+</table>
+<button onclick="placeOrder()">Оформити замовлення (потрібен логін)</button>
+
+<h2>3. Мої замовлення (потрібен логін)</h2>
+<button onclick="loadMyOrders()">Завантажити мої замовлення</button>
+<table id="ordersTable">
+  <thead><tr><th>ID Замовлення</th><th>Товари</th><th>Сума</th><th>Статус</th><th>Створено</th></tr></thead>
+  <tbody></tbody>
+</table>
+
+<h2>Raw response</h2>
+<pre id="output">(responses show up here)</pre>
+
+<script>
+let accessToken = null;
+let products = [];
+let cart = [];
+
+async function tryFetchToken() {
+  try {
+    const res = await fetch('/ui/token', { credentials: 'include' });
+    if (!res.ok) throw new Error('not logged in');
+    const data = await res.json();
+    accessToken = data.access_token;
+    document.getElementById('loginStatus').textContent = 'Logged in.';
+  } catch (e) {
+    accessToken = null;
+    document.getElementById('loginStatus').textContent = 'Not logged in - browsing only.';
+  }
+}
+
+function login() {
+    window.location.href = '/oauth2/authorization/keycloak';
+}
+
+function logout() {
+  window.location.href = '/logout';
+}
+
+async function loadProducts() {
+  const res = await fetch('/api/products');
+  products = await res.json();
+  const tbody = document.querySelector('#productsTable tbody');
+  tbody.innerHTML = '';
+  products.forEach(p => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${p.id}</td><td>${p.name}</td><td>${p.category}</td><td>₴${p.price}</td><td>${p.stockQuantity}</td>
+      <td><input type="number" id="qty-${p.id}" value="1" min="1"></td>
+      <td><button onclick="addToCart(${p.id})">Додати в кошик</button></td>
+    `;
+    tbody.appendChild(row);
+  });
+  show('Loaded ' + products.length + ' products');
+}
+
+function addToCart(productId) {
+  const qtyInput = document.getElementById('qty-' + productId);
+  const quantity = Number(qtyInput.value);
+  if (!quantity || quantity < 1) return;
+
+  const product = products.find(p => p.id === productId);
+  const existing = cart.find(c => c.productId === productId);
+  if (existing) {
+    existing.quantity += quantity;
+  } else {
+    cart.push({ productId, name: product ? product.name : ('#' + productId), quantity });
+  }
+  renderCart();
+}
+
+function removeFromCart(productId) {
+  cart = cart.filter(c => c.productId !== productId);
+  renderCart();
+}
+
+function renderCart() {
+  const tbody = document.querySelector('#cartTable tbody');
+  if (cart.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">Cart is empty</td></tr>';
+    return;
+  }
+  tbody.innerHTML = '';
+  cart.forEach(c => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${c.name}</td><td>${c.quantity}</td>
+      <td><button onclick="removeFromCart(${c.productId})">Remove</button></td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+async function placeOrder() {
+  if (!accessToken) {
+    show('You must log in before placing an order. Click "Log in" above.');
+    return;
+  }
+  if (cart.length === 0) {
+    show('Cart is empty - add something first.');
+    return;
+  }
+
+  const body = {
+    items: cart.map(c => ({ productId: c.productId, quantity: c.quantity })),
+    deliveryAddress: document.getElementById('deliveryAddress').value,
+    needsCutlery: !document.getElementById('noCutlery').checked
+  };
+
+  const res = await fetch('/api/orders', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  const raw = await res.text();
+  let parsed;
+  try { parsed = JSON.stringify(JSON.parse(raw), null, 2); } catch (e) { parsed = raw; }
+  show('POST /api/orders -> ' + res.status + '\n' + parsed);
+
+  if (res.ok) {
+    cart = [];
+    renderCart();
+    loadProducts();
+  }
+}
+
+async function loadMyOrders() {
+  if (!accessToken) {
+    show('You must log in before viewing orders. Click "Log in" above.');
+    return;
+  }
+  const res = await fetch('/api/orders/mine', {
+    headers: { 'Authorization': 'Bearer ' + accessToken }
+  });
+  const orders = await res.json();
+  const tbody = document.querySelector('#ordersTable tbody');
+  tbody.innerHTML = '';
+  orders.forEach(o => {
+    const itemsSummary = (o.items || [])
+      .map(i => `${i.productName} x${i.quantity}`)
+      .join(', ');
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${o.id}</td><td>${itemsSummary}</td><td>₴${o.totalAmount}</td>
+      <td>${o.status}</td><td>${o.createdAt}</td>
+    `;
+    tbody.appendChild(row);
+  });
+  show('Loaded ' + orders.length + ' of your orders');
+}
+
+function show(text) {
+  document.getElementById('output').textContent = text;
+}
+
+tryFetchToken();
+</script>
+
+</body>
+</html>

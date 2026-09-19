@@ -1,0 +1,89 @@
+### Authentication - Get Admin Token (Alice)
+POST http://localhost:8080/realms/course-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id = backend-app &
+username = alice &
+password = alice123 &
+grant_type = password
+
+> {% client.global.set("admin_token", response.body.access_token); %}
+
+### Authentication - Get User Token (Bob)
+POST http://localhost:8080/realms/course-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id = backend-app &
+username = bob &
+password = bob123 &
+grant_type = password
+
+> {% client.global.set("user_token", response.body.access_token); %}
+
+### Products - List All
+GET http://localhost:8081/api/products
+
+### Products - Create (Admin)
+POST http://localhost:8081/api/products
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Cheeseburger",
+  "description": "Juicy beef patty with cheddar cheese",
+  "category": "Burgers",
+  "price": 9.99,
+  "stockQuantity": 100
+}
+
+> {% client.global.set("new_product_id", response.body.id); %}
+
+### Products - Get By ID
+GET http://localhost:8081/api/products/{{new_product_id}}
+
+### Products - Update (Admin)
+PUT http://localhost:8081/api/products/{{new_product_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Double Cheeseburger",
+  "description": "Two juicy beef patties with extra cheddar cheese",
+  "category": "Burgers",
+  "price": 12.99,
+  "stockQuantity": 50
+}
+
+### Orders - Place Order (User)
+POST http://localhost:8081/api/orders
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": {{new_product_id}},
+      "quantity": 2
+    }
+  ],
+  "deliveryAddress": "123 Main St, Springfield",
+  "needsCutlery": true
+}
+
+> {% client.global.set("new_order_id", response.body.id); %}
+
+### Orders - My Orders (User)
+GET http://localhost:8081/api/orders/mine
+Authorization: Bearer {{user_token}}
+
+### Orders - Get Order Details (User)
+GET http://localhost:8081/api/orders/{{new_order_id}}
+Authorization: Bearer {{user_token}}
+
+### Products - Delete (Admin)
+DELETE http://localhost:8081/api/products/{{new_product_id}}
+Authorization: Bearer {{admin_token}}
+
+###
+DELETE http://localhost:8081/api/orders/{{new_order_id}}
+Authorization: Bearer {{admin_token}}

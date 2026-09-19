@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Order.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">car-parts</a> &gt; <a href="index.source.html" class="el_package">com.java.carparts.domain.model</a> &gt; <span class="el_source">Order.java</span></div><h1>Order.java</h1><pre class="source lang-java linenums">package com.java.carparts.domain.model;
+
+import com.java.carparts.domain.enums.OrderStatus;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Getter
+@Setter
+@Table(name = &quot;orders&quot;)
+@NoArgsConstructor
+@AllArgsConstructor
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @OneToMany(mappedBy = &quot;order&quot;, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;OrderItem&gt; items = new ArrayList&lt;&gt;();
+
+    // Stored, not computed on the fly - the total is calculated once at
+    // order time (from the item snapshots) and kept as-is afterward, same
+    // reasoning as OrderItem.unitPrice: order history should stay accurate
+    // to what was actually charged, not drift if item data changes later.
+    @Column(name = &quot;total_price&quot;, nullable = false)
+    private BigDecimal totalPrice;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderStatus status;
+
+    @Column(name = &quot;customer_username&quot;, nullable = false)
+    private String customerUsername;
+
+    @Column(name = &quot;created_at&quot;, nullable = false)
+    private OffsetDateTime createdAt;
+
+    // Keeps both sides of the relationship in sync in one call - a common,
+    // small but easy-to-forget JPA convenience method for bidirectional
+    // associations.
+    public void addItem(OrderItem item) {
+<span class="fc" id="L51">        items.add(item);</span>
+<span class="fc" id="L52">        item.setOrder(this);</span>
+<span class="fc" id="L53">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,9 @@
+com\java\carparts\service\OrderServiceTest.class
+com\java\carparts\service\ProductServiceTest.class
+com\java\carparts\domain\dto\OrderItemTest.class
+com\java\carparts\exception\GlobalExceptionHandlerTest.class
+com\java\carparts\domain\mapper\ProductMapperImplTest.class
+com\java\carparts\controller\OrderControllerTest.class
+com\java\carparts\domain\mapper\OrderMapperImplTest.class
+com\java\carparts\controller\ProductControllerTest.class
+com\java\carparts\controller\ProductPublicEndpointsWebMvcTest.class

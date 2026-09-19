@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="001-create-menu-items-table" author="course">
+        <createTable tableName="menu_items">
+            <column name="id" type="INT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(511)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="price" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="stock_quantity" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_menu_items_category" tableName="menu_items">
+            <column name="category"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-create-orders-table" author="course">
+        <createTable tableName="orders">
+            <column name="id" type="INT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="total_amount" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="customer_email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delivery_address" type="VARCHAR(511)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="needs_cutlery" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="003-create-order-items-table" author="course">
+        <createTable tableName="order_items">
+            <column name="id" type="INT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="product_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_price" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="order_items"
+                baseColumnNames="order_id"
+                constraintName="fk_order_items_order"
+                referencedTableName="orders"
+                referencedColumnNames="id"/>
+
+        <addForeignKeyConstraint
+                baseTableName="order_items"
+                baseColumnNames="product_id"
+                constraintName="fk_order_items_product"
+                referencedTableName="menu_items"
+                referencedColumnNames="id"/>
+    </changeSet>
+
+    <changeSet id="004-seed-menu-items" author="course">
+        <insert tableName="menu_items">
+            <column name="name" value="Чікен рол"/>
+            <column name="description" value="Смачний рол з куркою"/>
+            <column name="category" value="Роли"/>
+            <column name="price" valueNumeric="120.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+        <insert tableName="menu_items">
+            <column name="name" value="Гриль-бургер"/>
+            <column name="description" value="Бургер на грилі"/>
+            <column name="category" value="Бургери"/>
+            <column name="price" valueNumeric="150.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+        <insert tableName="menu_items">
+            <column name="name" value="Чизбургер"/>
+            <column name="description" value="Класичний чизбургер"/>
+            <column name="category" value="Бургери"/>
+            <column name="price" valueNumeric="90.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+        <insert tableName="menu_items">
+            <column name="name" value="Нагетси"/>
+            <column name="description" value="Курячі нагетси"/>
+            <column name="category" value="Снеки"/>
+            <column name="price" valueNumeric="80.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+        <insert tableName="menu_items">
+            <column name="name" value="Картопля фрі"/>
+            <column name="description" value="Хрустка картопля фрі"/>
+            <column name="category" value="Снеки"/>
+            <column name="price" valueNumeric="60.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

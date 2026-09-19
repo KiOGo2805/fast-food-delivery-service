@@ -1,0 +1,47 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: fast-food-delivery
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/course-realm
+
+      client:
+        registration:
+          keycloak:
+            client-id: backend-app
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/keycloak"
+            scope: openid, profile
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8080/realms/course-realm
+
+  docker:
+    compose:
+      enabled: true
+      lifecycle-management: start-and-stop
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/fastfood_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: user
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/changelog-master.xml
