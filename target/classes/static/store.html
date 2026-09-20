@@ -1,203 +1,363 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
-<meta charset="UTF-8">
-<title>Доставка фастфуду — Demo UI</title>
-<style>
-  body { font-family: monospace; max-width: 900px; margin: 40px auto; padding: 0 16px; }
-  button { padding: 6px 10px; cursor: pointer; margin: 2px; }
-  input { padding: 6px; width: 60px; }
-  pre { background: #f0f0f0; padding: 12px; white-space: pre-wrap; word-break: break-all; }
-  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-  td, th { border: 1px solid #ccc; padding: 6px 10px; text-align: left; font-size: 14px; }
-  h1 { font-size: 18px; }
-  h2 { font-size: 15px; margin-top: 28px; }
-  .status { font-size: 13px; color: #555; }
-  .empty { color: #888; font-style: italic; }
-</style>
+  <meta charset="UTF-8">
+  <title>Доставка фастфуду</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1000px; margin: 30px auto; padding: 0 20px; color: #333; }
+    button { padding: 8px 12px; cursor: pointer; margin: 2px; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+    button:hover { background-color: #0056b3; }
+    input, select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    input[type="number"] { width: 60px; }
+    pre { background: #f8f9fa; padding: 12px; border: 1px solid #ddd; border-radius: 4px; white-space: pre-wrap; word-break: break-all; }
+    table { border-collapse: collapse; width: 100%; margin: 15px 0; background: white; }
+    td, th { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 14px; }
+    th { background-color: #f4f4f4; }
+    h1 { font-size: 24px; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+    h2 { font-size: 18px; margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+    .status { font-size: 14px; font-weight: bold; color: #28a745; margin-bottom: 15px; }
+    .empty { color: #888; font-style: italic; text-align: center; }
+    .btn-danger { background-color: #dc3545; }
+    .btn-danger:hover { background-color: #c82333; }
+    .admin-panel { background-color: #fff3f3; padding: 15px; border-radius: 8px; border: 1px solid #ffcccc; margin-top: 30px; display: none; }
+    .admin-panel h2 { color: #d9534f; border-bottom-color: #ffcccc; margin-top: 0; }
+  </style>
 </head>
 <body>
 
-<h1>Доставка фастфуду (demo UI)</h1>
-<p class="status" id="loginStatus">Checking login status...</p>
-<button onclick="login()">Log in</button>
-<button onclick="logout()">Log out</button>
+<h1>🍔 Швидка доставка фастфуду</h1>
+<p class="status" id="loginStatus">Перевірка статусу...</p>
+<button onclick="login()" id="btnLogin">Увійти (Keycloak)</button>
+<button onclick="logout()" id="btnLogout" style="display:none;" class="btn-danger">Вийти</button>
 
-<h2>1. Browse products (public - no login needed)</h2>
-<button onclick="loadProducts()">Load products</button>
+<h2>📜 Меню (доступно всім)</h2>
+<button onclick="loadProducts()">Оновити меню</button>
 <table id="productsTable">
-  <thead><tr><th>ID</th><th>Назва</th><th>Категорія</th><th>Ціна</th><th>Залишок</th><th>К-ть</th><th></th></tr></thead>
+  <thead><tr><th>ID</th><th>Назва</th><th>Категорія</th><th>Ціна</th><th>Залишок</th><th>К-ть</th><th>Дії</th><th class="admin-col" style="display:none;">Адмін</th></tr></thead>
   <tbody></tbody>
 </table>
 
-<h2>2. Кошик</h2>
-<div style="margin-bottom: 10px;">
-  <label>Адреса доставки: <input type="text" id="deliveryAddress" style="width: 300px;"></label><br>
+<h2>🛒 Кошик</h2>
+<div style="margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 5px;">
+  <label><strong>Адреса доставки:</strong> <input type="text" id="deliveryAddress" style="width: 300px;" placeholder="Вул. Головна, 15, кв 2"></label><br><br>
   <label><input type="checkbox" id="noCutlery"> Без столових приборів</label>
 </div>
 <table id="cartTable">
-  <thead><tr><th>Товар</th><th>К-ть</th><th></th></tr></thead>
+  <thead><tr><th>Товар</th><th>К-ть</th><th>Дії</th></tr></thead>
   <tbody><tr><td colspan="3" class="empty">Кошик порожній</td></tr></tbody>
 </table>
-<button onclick="placeOrder()">Оформити замовлення (потрібен логін)</button>
+<button onclick="placeOrder()" style="background-color: #28a745;">Оформити замовлення</button>
 
-<h2>3. Мої замовлення (потрібен логін)</h2>
-<button onclick="loadMyOrders()">Завантажити мої замовлення</button>
-<table id="ordersTable">
-  <thead><tr><th>ID Замовлення</th><th>Товари</th><th>Сума</th><th>Статус</th><th>Створено</th></tr></thead>
-  <tbody></tbody>
-</table>
+<div id="userOrdersSection" style="display:none;">
+  <h2>📦 Мої замовлення</h2>
+  <button onclick="loadMyOrders()">Оновити мої замовлення</button>
+  <table id="ordersTable">
+    <thead><tr><th>ID</th><th>Товари</th><th>Сума</th><th>Статус</th><th>Час створення</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
 
-<h2>Raw response</h2>
-<pre id="output">(responses show up here)</pre>
+<!-- ПАНЕЛЬ АДМІНІСТРАТОРА -->
+<div class="admin-panel" id="adminPanel">
+  <h2>🛠️ Панель Адміністратора</h2>
+  <button onclick="loadAllOrders()">Завантажити ВСІ замовлення бази</button>
+  <table id="adminOrdersTable">
+    <thead><tr><th>ID</th><th>Клієнт</th><th>Сума</th><th>Поточний статус</th><th>Змінити статус</th><th>Дії</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<h2>🖥️ Логи сервера (Raw response)</h2>
+<pre id="output">Тут будуть відображатися відповіді від сервера...</pre>
 
 <script>
-let accessToken = null;
-let products = [];
-let cart = [];
+  let accessToken = null;
+  let isAdmin = false;
+  let products = [];
+  let cart = [];
 
-async function tryFetchToken() {
-  try {
-    const res = await fetch('/ui/token', { credentials: 'include' });
-    if (!res.ok) throw new Error('not logged in');
-    const data = await res.json();
-    accessToken = data.access_token;
-    document.getElementById('loginStatus').textContent = 'Logged in.';
-  } catch (e) {
-    accessToken = null;
-    document.getElementById('loginStatus').textContent = 'Not logged in - browsing only.';
+  // Декодування JWT токена для отримання ролей
+  function parseJwt(token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch(e) { return null; }
   }
-}
 
-function login() {
-    window.location.href = '/oauth2/authorization/keycloak';
-}
+  async function tryFetchToken() {
+    try {
+      const res = await fetch('/ui/token', { credentials: 'include' });
+      if (!res.ok) throw new Error('not logged in');
 
-function logout() {
-  window.location.href = '/logout';
-}
+      const data = await res.json();
+      accessToken = data.access_token;
 
-async function loadProducts() {
-  const res = await fetch('/api/products');
-  products = await res.json();
-  const tbody = document.querySelector('#productsTable tbody');
-  tbody.innerHTML = '';
-  products.forEach(p => {
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${p.id}</td><td>${p.name}</td><td>${p.category}</td><td>₴${p.price}</td><td>${p.stockQuantity}</td>
-      <td><input type="number" id="qty-${p.id}" value="1" min="1"></td>
-      <td><button onclick="addToCart(${p.id})">Додати в кошик</button></td>
+      const decodedToken = parseJwt(accessToken);
+      if (decodedToken && decodedToken.realm_access && decodedToken.realm_access.roles) {
+        isAdmin = decodedToken.realm_access.roles.includes('ADMIN');
+      }
+
+      document.getElementById('loginStatus').textContent = `Авторизовано як: ${decodedToken.preferred_username} ${isAdmin ? '(АДМІНІСТРАТОР)' : '(КЛІЄНТ)'}`;
+      document.getElementById('btnLogin').style.display = 'none';
+      document.getElementById('btnLogout').style.display = 'inline-block';
+      document.getElementById('userOrdersSection').style.display = 'block';
+
+      if (isAdmin) {
+        document.getElementById('adminPanel').style.display = 'block';
+        document.querySelectorAll('.admin-col').forEach(el => el.style.display = 'table-cell');
+        await loadAllOrders();
+      }
+
+      await loadMyOrders();
+    } catch (e) {
+      accessToken = null;
+      isAdmin = false;
+      document.getElementById('loginStatus').textContent = 'Ви не авторизовані. Можна лише переглядати меню.';
+      document.getElementById('loginStatus').style.color = '#dc3545';
+    }
+    await loadProducts();
+  }
+
+  function login() { window.location.href = '/oauth2/authorization/keycloak'; }
+  function logout() { window.location.href = '/logout'; }
+
+  async function loadProducts() {
+    const res = await fetch('/api/products');
+    products = await res.json();
+    const tbody = document.querySelector('#productsTable tbody');
+    tbody.innerHTML = '';
+
+    products.forEach(p => {
+      const row = document.createElement('tr');
+      let adminBtn = isAdmin ? `<td class="admin-col"><button class="btn-danger" onclick="deleteProduct(${p.id})">Видалити</button></td>` : `<td class="admin-col" style="display:none;"></td>`;
+
+      row.innerHTML = `
+      <td>${p.id}</td>
+      <td><strong>${p.name}</strong></td>
+      <td>${p.category}</td>
+      <td>₴${p.price}</td>
+      <td>${p.stockQuantity}</td>
+      <td><input type="number" id="qty-${p.id}" value="1" min="1" max="${p.stockQuantity}"></td>
+      <td><button onclick="addToCart(${p.id})">В кошик</button></td>
+      ${adminBtn}
     `;
-    tbody.appendChild(row);
-  });
-  show('Loaded ' + products.length + ' products');
-}
-
-function addToCart(productId) {
-  const qtyInput = document.getElementById('qty-' + productId);
-  const quantity = Number(qtyInput.value);
-  if (!quantity || quantity < 1) return;
-
-  const product = products.find(p => p.id === productId);
-  const existing = cart.find(c => c.productId === productId);
-  if (existing) {
-    existing.quantity += quantity;
-  } else {
-    cart.push({ productId, name: product ? product.name : ('#' + productId), quantity });
-  }
-  renderCart();
-}
-
-function removeFromCart(productId) {
-  cart = cart.filter(c => c.productId !== productId);
-  renderCart();
-}
-
-function renderCart() {
-  const tbody = document.querySelector('#cartTable tbody');
-  if (cart.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" class="empty">Cart is empty</td></tr>';
-    return;
-  }
-  tbody.innerHTML = '';
-  cart.forEach(c => {
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${c.name}</td><td>${c.quantity}</td>
-      <td><button onclick="removeFromCart(${c.productId})">Remove</button></td>
-    `;
-    tbody.appendChild(row);
-  });
-}
-
-async function placeOrder() {
-  if (!accessToken) {
-    show('You must log in before placing an order. Click "Log in" above.');
-    return;
-  }
-  if (cart.length === 0) {
-    show('Cart is empty - add something first.');
-    return;
+      tbody.appendChild(row);
+    });
+    show(`Завантажено ${products.length} товарів у меню.`);
   }
 
-  const body = {
-    items: cart.map(c => ({ productId: c.productId, quantity: c.quantity })),
-    deliveryAddress: document.getElementById('deliveryAddress').value,
-    needsCutlery: !document.getElementById('noCutlery').checked
-  };
+  async function deleteProduct(id) {
+    if (!confirm(`Точно видалити продукт ID ${id}?`)) return;
+    const res = await fetch(`/api/products/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
 
-  const res = await fetch('/api/orders', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + accessToken,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
+    if (res.ok || res.status === 204) {
+      show(`Продукт ${id} успішно видалено.`);
+      await loadProducts(); // Оновлюємо таблицю
+    } else {
+      const err = await res.text();
+      show(`Помилка видалення продукту ${id}: ${res.status}\n${err}`);
+    }
+  }
 
-  const raw = await res.text();
-  let parsed;
-  try { parsed = JSON.stringify(JSON.parse(raw), null, 2); } catch (e) { parsed = raw; }
-  show('POST /api/orders -> ' + res.status + '\n' + parsed);
+  function addToCart(productId) {
+    const qtyInput = document.getElementById('qty-' + productId);
+    const quantity = Number(qtyInput.value);
+    if (!quantity || quantity < 1) return;
 
-  if (res.ok) {
-    cart = [];
+    const product = products.find(p => p.id === productId);
+    if (product.stockQuantity < quantity) {
+      alert('Недостатньо товару на складі!');
+      return;
+    }
+
+    const existing = cart.find(c => c.productId === productId);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      cart.push({ productId, name: product ? product.name : ('#' + productId), quantity, price: product.price });
+    }
     renderCart();
-    loadProducts();
   }
-}
 
-async function loadMyOrders() {
-  if (!accessToken) {
-    show('You must log in before viewing orders. Click "Log in" above.');
-    return;
+  function removeFromCart(productId) {
+    cart = cart.filter(c => c.productId !== productId);
+    renderCart();
   }
-  const res = await fetch('/api/orders/mine', {
-    headers: { 'Authorization': 'Bearer ' + accessToken }
-  });
-  const orders = await res.json();
-  const tbody = document.querySelector('#ordersTable tbody');
-  tbody.innerHTML = '';
-  orders.forEach(o => {
-    const itemsSummary = (o.items || [])
-      .map(i => `${i.productName} x${i.quantity}`)
-      .join(', ');
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${o.id}</td><td>${itemsSummary}</td><td>₴${o.totalAmount}</td>
-      <td>${o.status}</td><td>${o.createdAt}</td>
+
+  function renderCart() {
+    const tbody = document.querySelector('#cartTable tbody');
+    if (cart.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">Кошик порожній</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    let total = 0;
+    cart.forEach(c => {
+      total += c.price * c.quantity;
+      const row = document.createElement('tr');
+      row.innerHTML = `
+      <td>${c.name}</td><td>${c.quantity} шт.</td>
+      <td><button class="btn-danger" onclick="removeFromCart(${c.productId})">❌</button></td>
     `;
-    tbody.appendChild(row);
-  });
-  show('Loaded ' + orders.length + ' of your orders');
-}
+      tbody.appendChild(row);
+    });
+    const totalRow = document.createElement('tr');
+    totalRow.innerHTML = `<td colspan="3" style="text-align: right; font-weight: bold;">Разом: ₴${total.toFixed(2)}</td>`;
+    tbody.appendChild(totalRow);
+  }
 
-function show(text) {
-  document.getElementById('output').textContent = text;
-}
+  async function placeOrder() {
+    if (!accessToken) return alert('Будь ласка, увійдіть в систему, щоб зробити замовлення.');
+    if (cart.length === 0) return alert('Кошик порожній!');
+    if (!document.getElementById('deliveryAddress').value) return alert('Вкажіть адресу доставки!');
 
-tryFetchToken();
+    const body = {
+      items: cart.map(c => ({ productId: c.productId, quantity: c.quantity })),
+      deliveryAddress: document.getElementById('deliveryAddress').value,
+      needsCutlery: !document.getElementById('noCutlery').checked
+    };
+
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      cart = [];
+      document.getElementById('deliveryAddress').value = '';
+      renderCart();
+
+      // Оновлюємо все після створення
+      await loadProducts();
+      await loadMyOrders();
+      if(isAdmin) await loadAllOrders();
+      show('Замовлення успішно оформлено!');
+    } else {
+      const err = await res.text();
+      show(`Помилка створення замовлення: ${res.status}\n${err}`);
+    }
+  }
+
+  async function loadMyOrders() {
+    if (!accessToken) return;
+    show('Завантаження ваших замовлень...');
+
+    // ПОВЕРНУВ ПРАВИЛЬНИЙ ЕНДПОІНТ: /api/orders/mine
+    const res = await fetch('/api/orders/mine', {
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+
+    if(!res.ok) return show('Помилка завантаження моїх замовлень: ' + res.status);
+
+    const orders = await res.json();
+    const tbody = document.querySelector('#ordersTable tbody');
+    tbody.innerHTML = '';
+
+    orders.forEach(o => {
+      const itemsSummary = (o.items || []).map(i => `${i.productName} (x${i.quantity})`).join(', ');
+      const row = document.createElement('tr');
+      row.innerHTML = `
+      <td>#${o.id}</td><td>${itemsSummary}</td><td><strong>₴${o.totalAmount}</strong></td>
+      <td>${getStatusBadge(o.status)}</td><td>${new Date(o.createdAt).toLocaleString()}</td>
+    `;
+      tbody.appendChild(row);
+    });
+    show(`Завантажено ${orders.length} ваших замовлень.`);
+  }
+
+  async function loadAllOrders() {
+    if (!accessToken) return;
+    show('Завантаження всіх замовлень...');
+
+    const res = await fetch('/api/orders', {
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+
+    if (!res.ok) return show('Помилка доступу до всіх замовлень. Статус: ' + res.status);
+
+    const orders = await res.json();
+    const tbody = document.querySelector('#adminOrdersTable tbody');
+    tbody.innerHTML = '';
+
+    orders.forEach(o => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+      <td>#${o.id}</td>
+      <td>${o.customerEmail || 'N/A'}<br><small>${o.deliveryAddress}</small></td>
+      <td>₴${o.totalAmount}</td>
+      <td>${getStatusBadge(o.status)}</td>
+      <td>
+        <select id="statusSelect-${o.id}">
+          <option value="PENDING" ${o.status==='PENDING'?'selected':''}>PENDING</option>
+          <option value="CONFIRMED" ${o.status==='CONFIRMED'?'selected':''}>CONFIRMED</option>
+          <option value="DELIVERED" ${o.status==='DELIVERED'?'selected':''}>DELIVERED</option>
+          <option value="CANCELLED" ${o.status==='CANCELLED'?'selected':''}>CANCELLED</option>
+        </select>
+        <button onclick="updateStatus(${o.id})">💾</button>
+      </td>
+      <td><button class="btn-danger" onclick="deleteOrder(${o.id})">Видалити</button></td>
+    `;
+      tbody.appendChild(row);
+    });
+    show(`Завантажено всі замовлення бази даних (${orders.length} шт.)`);
+  }
+
+  async function updateStatus(id) {
+    const newStatus = document.getElementById(`statusSelect-${id}`).value;
+    show(`Оновлення статусу...`);
+
+    const res = await fetch(`/api/orders/${id}/status?newStatus=${newStatus}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+
+    if (res.ok) {
+      // Чекаємо, поки таблиці оновляться
+      await loadAllOrders();
+      await loadMyOrders();
+      show(`Статус замовлення #${id} успішно змінено на ${newStatus}`);
+    } else {
+      show(`Помилка зміни статусу: ${await res.text()}`);
+    }
+  }
+
+  async function deleteOrder(id) {
+    if(!confirm(`Увага! Видалити замовлення #${id} з бази назавжди?`)) return;
+
+    const res = await fetch(`/api/orders/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+
+    if (res.ok || res.status === 204) {
+      await loadAllOrders(); // Оновлюємо таблицю
+      show(`Замовлення #${id} видалено з БД.`);
+    } else {
+      show(`Помилка видалення замовлення: ${await res.text()}`);
+    }
+  }
+
+  function getStatusBadge(status) {
+    let color = status === 'DELIVERED' ? 'green' : status === 'CANCELLED' ? 'red' : 'orange';
+    return `<span style="color:${color}; font-weight:bold;">${status}</span>`;
+  }
+
+  function show(text) {
+    document.getElementById('output').textContent = text;
+  }
+
+  tryFetchToken();
 </script>
 
 </body>

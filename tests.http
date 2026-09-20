@@ -20,74 +20,155 @@ grant_type = password
 
 > {% client.global.set("user_token", response.body.access_token); %}
 
+###
+@host = http://localhost:8081
+
 ### Products - List All
-GET http://localhost:8081/api/products
+GET {{host}}/api/products
 
-### Products - Create (Admin)
-POST http://localhost:8081/api/products
+### =========================================
+### 1. СТВОРЕННЯ ПРОДУКТУ
+### =========================================
+
+### 1.1. Юзер намагається створити (Очікуємо: 403 Forbidden)
+POST {{host}}/api/products
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "name": "Тестовий Бургер",
+  "category": "BURGERS",
+  "price": 100.0,
+  "description": "Тест для захисту",
+  "stockQuantity": 10
+}
+
+### 1.2. Адмін створює (Очікуємо: 201 Created або 200 OK)
+# Зверни увагу на ID створеного продукту у відповіді (наприклад, 15), щоб підставити його нижче!
+POST {{host}}/api/products
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 
 {
-  "name": "Cheeseburger",
-  "description": "Juicy beef patty with cheddar cheese",
-  "category": "Burgers",
-  "price": 9.99,
-  "stockQuantity": 100
+  "name": "Тестовий Бургер",
+  "category": "BURGERS",
+  "price": 100.0,
+  "description": "Тест для захисту",
+  "stockQuantity": 10
 }
 
-> {% client.global.set("new_product_id", response.body.id); %}
 
-### Products - Get By ID
-GET http://localhost:8081/api/products/{{new_product_id}}
+### =========================================
+### 2. ОНОВЛЕННЯ ПРОДУКТУ
+### =========================================
+# Заміни '15' на ID продукту, який ти щойно створив
 
-### Products - Update (Admin)
-PUT http://localhost:8081/api/products/{{new_product_id}}
+### 2.1. Юзер намагається оновити (Очікуємо: 403 Forbidden)
+PUT {{host}}/api/products/15
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "name": "Оновлений Бургер",
+  "category": "BURGERS",
+  "price": 120.0,
+  "description": "Нова ціна",
+  "stockQuantity": 10
+}
+
+### 2.2. Адмін оновлює (Очікуємо: 200 OK)
+PUT {{host}}/api/products/15
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 
 {
-  "name": "Double Cheeseburger",
-  "description": "Two juicy beef patties with extra cheddar cheese",
-  "category": "Burgers",
-  "price": 12.99,
-  "stockQuantity": 50
+  "name": "Оновлений Бургер",
+  "category": "BURGERS",
+  "price": 120.0,
+  "description": "Нова ціна",
+  "stockQuantity": 10
 }
 
-### Orders - Place Order (User)
-POST http://localhost:8081/api/orders
+
+### =========================================
+### 3. СТВОРЕННЯ ЗАМОВЛЕННЯ
+### =========================================
+
+### 3.1. Юзер робить замовлення (Очікуємо: 201 Created або 200 OK)
+# Зверни увагу на ID створеного замовлення у відповіді (наприклад, 5)
+POST {{host}}/api/orders
 Authorization: Bearer {{user_token}}
 Content-Type: application/json
 
 {
   "items": [
     {
-      "productId": {{new_product_id}},
-      "quantity": 2
+      "productId": 15,
+      "quantity": 1
     }
   ],
-  "deliveryAddress": "123 Main St, Springfield",
-  "needsCutlery": true
+  "deliveryAddress": "Вул. Студентська, 2",
+  "needsCutlery": false
 }
 
-> {% client.global.set("new_order_id", response.body.id); %}
 
-### Orders - My Orders (User)
-GET http://localhost:8081/api/orders/mine
+### =========================================
+### 4. ЗМІНА СТАТУСУ ЗАМОВЛЕННЯ
+### =========================================
+# Заміни '5' на ID замовлення з кроку 3
+
+### 4.1. Юзер намагається змінити статус (Очікуємо: 403 Forbidden)
+PATCH {{host}}/api/orders/5/status?newStatus=DELIVERED
 Authorization: Bearer {{user_token}}
 
-### Orders - Get Order Details (User)
-GET http://localhost:8081/api/orders/{{new_order_id}}
+### 4.2. Адмін змінює статус (Очікуємо: 200 OK)
+PATCH {{host}}/api/orders/5/status?newStatus=DELIVERED
+Authorization: Bearer {{admin_token}}
+
+
+### =========================================
+### 5. ВИДАЛЕННЯ ЗАМОВЛЕННЯ
+### =========================================
+
+### 5.1. Юзер намагається видалити замовлення (Очікуємо: 403 Forbidden)
+DELETE {{host}}/api/orders/5
 Authorization: Bearer {{user_token}}
 
-### Products - Delete (Admin)
-DELETE http://localhost:8081/api/products/{{new_product_id}}
+### 5.2. Адмін видаляє замовлення (Очікуємо: 204 No Content або 200 OK)
+DELETE {{host}}/api/orders/5
 Authorization: Bearer {{admin_token}}
 
-### Видалення замовлення адміністратором
-DELETE http://localhost:8081/api/orders/{{new_order_id}}
+
+### =========================================
+### 6. ВИДАЛЕННЯ ПРОДУКТУ
+### =========================================
+
+### 6.1. Юзер намагається видалити продукт (Очікуємо: 403 Forbidden)
+DELETE {{host}}/api/products/15
+Authorization: Bearer {{user_token}}
+
+### 6.2. Адмін видаляє продукт (Очікуємо: 204 No Content)
+# (Замовлення ми щойно видалили на кроці 5, тому конфлікту зовнішніх ключів у БД не буде)
+DELETE {{host}}/api/products/15
 Authorization: Bearer {{admin_token}}
 
-###
-PATCH http://localhost:8081/api/orders/{{new_order_id}}/status?newStatus=DELIVERY
+### =========================================
+### 7. ПЕРЕГЛЯД ЗАМОВЛЕНЬ
+### =========================================
+
+### 7.1. Юзер переглядає виключно свої замовлення (Очікуємо: 200 OK)
+GET {{host}}/api/orders/mine
+Authorization: Bearer {{user_token}}
+
+### 7.2. Адмін переглядає свої замовлення (Очікуємо: 200 OK)
+# Адмін теж юзер і може замовляти їжу для себе
+GET {{host}}/api/orders/mine
+Authorization: Bearer {{admin_token}}
+
+### 7.3. Юзер намагається отримати всі замовлення бази (Очікуємо: 403 Forbidden)
+GET {{host}}/api/orders
+Authorization: Bearer {{user_token}}
+
+### 7.4. Адмін отримує абсолютно всі замовлення бази (Очікуємо: 200 OK)
+GET {{host}}/api/orders
 Authorization: Bearer {{admin_token}}

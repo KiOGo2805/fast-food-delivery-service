@@ -55,4 +55,10 @@ public class OrderController {
         orderService.updateOrderStatus(id, newStatus);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<OrderResponse> getAllOrders() {
+        return orderService.getAllOrders();
+    }
 }
