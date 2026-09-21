@@ -65,7 +65,7 @@ public class OrderService {
             order.addItem(item);
 
             product.setStockQuantity(product.getStockQuantity() - itemRequest.getQuantity());
-            productRepository.save(product);
+            //productRepository.save(product);
         }
 
         order.setTotalAmount(total);

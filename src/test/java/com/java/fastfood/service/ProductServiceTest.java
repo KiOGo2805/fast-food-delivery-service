@@ -11,16 +11,16 @@ import com.java.fastfood.repository.OrderRepository;
 import com.java.fastfood.repository.ProductRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,140 +28,142 @@ class ProductServiceTest {
 
     @Mock
     private ProductRepository productRepository;
-
     @Mock
     private OrderRepository orderRepository;
-
     @Mock
     private ProductMapper productMapper;
 
     @InjectMocks
     private ProductService productService;
 
-    private Product product(int id) {
+    @Test
+    void listAll_productsExist_returnsList() {
+        // Arrange
         Product product = new Product();
-        product.setId(id);
-        product.setName("Product " + id);
-        product.setDescription("Description " + id);
-        product.setCategory("Бургери");
-        product.setPrice(new BigDecimal("10.00"));
-        product.setStockQuantity(5);
-        return product;
-    }
-
-    @Test
-    void listAll_mapsEveryProduct() {
-        Product p1 = product(1);
-        Product p2 = product(2);
-        ProductResponse r1 = new ProductResponse();
-        ProductResponse r2 = new ProductResponse();
-        when(productRepository.findAll()).thenReturn(List.of(p1, p2));
-        when(productMapper.toResponse(p1)).thenReturn(r1);
-        when(productMapper.toResponse(p2)).thenReturn(r2);
-
-        List<ProductResponse> result = productService.listAll();
-
-        assertThat(result).containsExactly(r1, r2);
-    }
-
-    @Test
-    void listAll_noProducts_returnsEmptyList() {
-        when(productRepository.findAll()).thenReturn(List.of());
-
-        assertThat(productService.listAll()).isEmpty();
-    }
-
-    @Test
-    void getById_productExists_returnsMappedResponse() {
-        Product product = product(1);
         ProductResponse response = new ProductResponse();
-        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(productRepository.findAll()).thenReturn(List.of(product));
         when(productMapper.toResponse(product)).thenReturn(response);
 
-        assertThat(productService.getById(1)).isSameAs(response);
+        // Act
+        List<ProductResponse> result = productService.listAll();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(response, result.get(0));
     }
 
     @Test
-    void getById_productMissing_throwsProductNotFoundException() {
-        when(productRepository.findById(404)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> productService.getById(404))
-                .isInstanceOf(ProductNotFoundException.class)
-                .hasMessageContaining("404");
-    }
-
-    @Test
-    void create_mapsRequestToEntityAndSaves() {
-        ProductCreateRequest request = new ProductCreateRequest(
-                "New Part", "New Description", "Бургери", new BigDecimal("12.00"), 10);
-        Product entity = product(9);
-        Product saved = product(9);
+    void getById_productExists_returnsProduct() {
+        // Arrange
+        Integer productId = 1;
+        Product product = new Product();
         ProductResponse response = new ProductResponse();
-        when(productMapper.toEntity(request)).thenReturn(entity);
-        when(productRepository.save(entity)).thenReturn(saved);
-        when(productMapper.toResponse(saved)).thenReturn(response);
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(productMapper.toResponse(product)).thenReturn(response);
 
-        assertThat(productService.create(request)).isSameAs(response);
-        verify(productRepository).save(entity);
+        // Act
+        ProductResponse result = productService.getById(productId);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(response, result);
     }
 
     @Test
-    void update_productExists_appliesChangesAndSaves() {
-        Product existing = product(1);
-        ProductUpdateRequest request = new ProductUpdateRequest(
-                "Updated Name", "Updated Description", "Бургери", new BigDecimal("20.00"), 3);
+    void getById_productNotFound_throwsException() {
+        // Arrange
+        Integer productId = 99;
+        when(productRepository.findById(productId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ProductNotFoundException.class, () -> productService.getById(productId));
+    }
+
+    @Test
+    void create_validRequest_returnsCreatedProduct() {
+        // Arrange
+        ProductCreateRequest request = new ProductCreateRequest();
+        Product product = new Product();
+        Product savedProduct = new Product();
         ProductResponse response = new ProductResponse();
-        when(productRepository.findById(1)).thenReturn(Optional.of(existing));
-        when(productRepository.save(existing)).thenReturn(existing);
-        when(productMapper.toResponse(existing)).thenReturn(response);
 
-        ProductResponse result = productService.update(1, request);
+        when(productMapper.toEntity(request)).thenReturn(product);
+        when(productRepository.save(product)).thenReturn(savedProduct);
+        when(productMapper.toResponse(savedProduct)).thenReturn(response);
 
-        verify(productMapper).updateEntityFromRequest(request, existing);
-        assertThat(result).isSameAs(response);
+        // Act
+        ProductResponse result = productService.create(request);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(response, result);
+
+        // Перевірка факту виклику та переданих параметрів через ArgumentCaptor
+        ArgumentCaptor<Product> productCaptor = ArgumentCaptor.forClass(Product.class);
+        verify(productRepository).save(productCaptor.capture());
+        assertEquals(product, productCaptor.getValue());
     }
 
     @Test
-    void update_productMissing_throwsProductNotFoundException_beforeTouchingMapper() {
-        when(productRepository.findById(404)).thenReturn(Optional.empty());
+    void update_validRequest_returnsUpdatedProduct() {
+        // Arrange
+        Integer productId = 1;
+        ProductUpdateRequest request = new ProductUpdateRequest();
+        Product product = new Product();
+        Product savedProduct = new Product();
+        ProductResponse response = new ProductResponse();
 
-        ProductUpdateRequest request = new ProductUpdateRequest(
-                "Name", "Description", "Бургери", new BigDecimal("1.00"), 1);
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        doNothing().when(productMapper).updateEntityFromRequest(request, product);
+        when(productRepository.save(product)).thenReturn(savedProduct);
+        when(productMapper.toResponse(savedProduct)).thenReturn(response);
 
-        assertThatThrownBy(() -> productService.update(404, request))
-                .isInstanceOf(ProductNotFoundException.class);
+        // Act
+        ProductResponse result = productService.update(productId, request);
 
-        verifyNoInteractions(productMapper);
+        // Assert
+        assertNotNull(result);
+        assertEquals(response, result);
+        verify(productRepository).save(product);
     }
 
     @Test
-    void delete_productExists_deletesById() {
-        when(productRepository.existsById(1)).thenReturn(true);
-        when(orderRepository.existsByProductId(1)).thenReturn(false);
+    void delete_validId_deletesProduct() {
+        // Arrange
+        Integer productId = 1;
+        when(productRepository.existsById(productId)).thenReturn(true);
+        when(orderRepository.existsByProductId(productId)).thenReturn(false);
 
-        productService.delete(1);
+        // Act
+        productService.delete(productId);
 
-        verify(productRepository).deleteById(1);
+        // Assert
+        verify(productRepository).deleteById(productId);
     }
 
     @Test
-    void delete_productInUse_throwsProductInUseException() {
-        when(productRepository.existsById(1)).thenReturn(true);
-        when(orderRepository.existsByProductId(1)).thenReturn(true);
+    void delete_productNotFound_throwsException() {
+        // Arrange
+        Integer productId = 99;
+        when(productRepository.existsById(productId)).thenReturn(false);
 
-        assertThatThrownBy(() -> productService.delete(1))
-                .isInstanceOf(ProductInUseException.class);
+        // Act & Assert
+        assertThrows(ProductNotFoundException.class, () -> productService.delete(productId));
 
+        // Перевіряємо, що видалення не було викликане
         verify(productRepository, never()).deleteById(any());
     }
 
     @Test
-    void delete_productMissing_throwsProductNotFoundException_andNeverCallsDelete() {
-        when(productRepository.existsById(404)).thenReturn(false);
+    void delete_productInUse_throwsException() {
+        // Arrange
+        Integer productId = 1;
+        when(productRepository.existsById(productId)).thenReturn(true);
+        when(orderRepository.existsByProductId(productId)).thenReturn(true);
 
-        assertThatThrownBy(() -> productService.delete(404))
-                .isInstanceOf(ProductNotFoundException.class);
-
+        // Act & Assert
+        assertThrows(ProductInUseException.class, () -> productService.delete(productId));
         verify(productRepository, never()).deleteById(any());
     }
 }

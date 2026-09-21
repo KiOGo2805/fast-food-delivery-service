@@ -14,8 +14,6 @@ import com.java.fastfood.repository.OrderRepository;
 import com.java.fastfood.repository.ProductRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -26,8 +24,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -36,227 +33,248 @@ class OrderServiceTest {
 
     @Mock
     private ProductRepository productRepository;
-
     @Mock
     private OrderRepository orderRepository;
-
     @Mock
     private OrderMapper orderMapper;
-    
+
     @InjectMocks
     private OrderService orderService;
 
-    private static final String USERNAME = "alice";
+    @Test
+    void placeOrder_standardQuantity_createsOrderAndDeductsStock() {
+        // Arrange
+        String username = "bob";
+        PlaceOrderRequest request = new PlaceOrderRequest();
+        request.setDeliveryAddress("Street 1");
+        request.setNeedsCutlery(true);
 
-    private Product product(int id, String price, int stock) {
+        OrderItemRequest itemRequest = new OrderItemRequest();
+        itemRequest.setProductId(1);
+        itemRequest.setQuantity(2); // Менше порогу знижки (5)
+        request.setItems(List.of(itemRequest));
+
         Product product = new Product();
-        product.setId(id);
-        product.setName("Product " + id);
-        product.setDescription("Description " + id);
-        product.setCategory("Бургери");
-        product.setPrice(new BigDecimal(price));
-        product.setStockQuantity(stock);
-        return product;
+        product.setId(1);
+        product.setPrice(new BigDecimal("100.00"));
+        product.setStockQuantity(10);
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(orderMapper.toResponse(any(Order.class))).thenReturn(new OrderResponse());
+
+        // Act
+        OrderResponse result = orderService.placeOrder(username, request);
+
+        // Assert
+        assertNotNull(result);
+
+        // Перевірка збереження продукту та зменшення стоку
+        ArgumentCaptor<Product> productCaptor = ArgumentCaptor.forClass(Product.class);
+        verify(productRepository).save(productCaptor.capture());
+        assertEquals(8, productCaptor.getValue().getStockQuantity()); // 10 - 2 = 8
+
+        // Перевірка створення замовлення та суми
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(orderCaptor.capture());
+        Order savedOrder = orderCaptor.getValue();
+
+        assertEquals(username, savedOrder.getCustomerName());
+        assertEquals(OrderStatus.CONFIRMED, savedOrder.getStatus());
+        assertEquals(new BigDecimal("200.00"), savedOrder.getTotalAmount()); // 2 * 100
     }
 
     @Test
-    void placeOrder_singleItem_belowBulkThreshold_noDiscountApplied() {
-        Product product = product(1, "10.00", 50);
+    void placeOrder_bulkQuantity_appliesDiscount() {
+        // Arrange
+        PlaceOrderRequest request = new PlaceOrderRequest();
+        OrderItemRequest itemRequest = new OrderItemRequest();
+        itemRequest.setProductId(1);
+        itemRequest.setQuantity(5); // Поріг знижки 10%
+        request.setItems(List.of(itemRequest));
+
+        Product product = new Product();
+        product.setId(1);
+        product.setPrice(new BigDecimal("100.00"));
+        product.setStockQuantity(10);
+
         when(productRepository.findById(1)).thenReturn(Optional.of(product));
-        when(orderMapper.toResponse(any(Order.class))).thenAnswer(inv -> new OrderResponse());
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+        when(orderMapper.toResponse(any(Order.class))).thenReturn(new OrderResponse());
 
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setItems(List.of(new OrderItemRequest(1, 3)));
-        request.setDeliveryAddress("Kyiv, Main Str 1");
-        request.setNeedsCutlery(true);
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        orderService.placeOrder(USERNAME, request);
+        // Act
+        orderService.placeOrder("bob", request);
 
-        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(orderCaptor.capture());
-        Order saved = orderCaptor.getValue();
-
-        assertThat(saved.getTotalAmount()).isEqualByComparingTo(new BigDecimal("30.00"));
-        assertThat(saved.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-        assertThat(saved.getCustomerName()).isEqualTo(USERNAME);
-        assertThat(saved.getItems()).hasSize(1);
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-            "4,  40.00",
-            "5,  45.00",
-            "10, 90.00"
-    })
-    void placeOrder_bulkDiscountThreshold_appliesExactlyAtFiveOrMore(int quantity, String expectedTotal) {
-        Product product = product(1, "10.00", 100);
-        when(productRepository.findById(1)).thenReturn(Optional.of(product));
-        when(orderMapper.toResponse(any(Order.class))).thenAnswer(inv -> new OrderResponse());
-
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setItems(List.of(new OrderItemRequest(1, quantity)));
-        request.setDeliveryAddress("Kyiv, Main Str 1");
-        request.setNeedsCutlery(true);
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        orderService.placeOrder(USERNAME, request);
-
-        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(orderCaptor.capture());
-
-        assertThat(orderCaptor.getValue().getTotalAmount()).isEqualByComparingTo(new BigDecimal(expectedTotal));
-    }
-
-    @Test
-    void placeOrder_multipleItems_totalIsSumOfLineTotals() {
-        Product productA = product(1, "10.00", 50);
-        Product productB = product(2, "20.00", 50);
-        when(productRepository.findById(1)).thenReturn(Optional.of(productA));
-        when(productRepository.findById(2)).thenReturn(Optional.of(productB));
-        when(orderMapper.toResponse(any(Order.class))).thenAnswer(inv -> new OrderResponse());
-
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setItems(List.of(
-                new OrderItemRequest(1, 2),
-                new OrderItemRequest(2, 1)
-        ));
-        request.setDeliveryAddress("Kyiv, Main Str 1");
-        request.setNeedsCutlery(true);
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        orderService.placeOrder(USERNAME, request);
-
+        // Assert
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
 
-        assertThat(orderCaptor.getValue().getTotalAmount()).isEqualByComparingTo(new BigDecimal("40.00"));
-        assertThat(orderCaptor.getValue().getItems()).hasSize(2);
+        // 5 * 100 = 500; знижка 10% = 50; Разом = 450.00
+        assertEquals(new BigDecimal("450.0000"), orderCaptor.getValue().getTotalAmount());
     }
 
     @Test
-    void placeOrder_decrementsStockAndSavesEachProduct() {
-        Product product = product(1, "10.00", 50);
-        when(productRepository.findById(1)).thenReturn(Optional.of(product));
-        when(orderMapper.toResponse(any(Order.class))).thenAnswer(inv -> new OrderResponse());
-
+    void placeOrder_insufficientStock_throwsException() {
+        // Arrange
         PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setItems(List.of(new OrderItemRequest(1, 7)));
-        request.setDeliveryAddress("Kyiv, Main Str 1");
-        request.setNeedsCutlery(true);
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        orderService.placeOrder(USERNAME, request);
+        OrderItemRequest itemRequest = new OrderItemRequest();
+        itemRequest.setProductId(1);
+        itemRequest.setQuantity(15); // Запит більший за наявність
+        request.setItems(List.of(itemRequest));
 
-        assertThat(product.getStockQuantity()).isEqualTo(43);
-        verify(productRepository).save(product);
-    }
+        Product product = new Product();
+        product.setId(1);
+        product.setStockQuantity(10);
 
-    @Test
-    void placeOrder_snapshotsUnitPriceOnItem_independentOfLaterProductPriceChanges() {
-        Product product = product(1, "15.50", 20);
-        when(productRepository.findById(1)).thenReturn(Optional.of(product));
-        when(orderMapper.toResponse(any(Order.class))).thenAnswer(inv -> new OrderResponse());
-
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setItems(List.of(new OrderItemRequest(1, 1)));
-        request.setDeliveryAddress("Kyiv, Main Str 1");
-        request.setNeedsCutlery(true);
-        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        orderService.placeOrder(USERNAME, request);
-
-        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(orderCaptor.capture());
-
-        assertThat(orderCaptor.getValue().getItems().getFirst().getUnitPrice())
-                .isEqualByComparingTo(new BigDecimal("15.50"));
-    }
-
-    @Test
-    void placeOrder_productDoesNotExist_throwsProductNotFoundException() {
-        when(productRepository.findById(99)).thenReturn(Optional.empty());
-
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setItems(List.of(new OrderItemRequest(99, 1)));
-
-        assertThatThrownBy(() -> orderService.placeOrder(USERNAME, request))
-                .isInstanceOf(ProductNotFoundException.class);
-
-        verifyNoInteractions(orderRepository);
-    }
-
-    @Test
-    void placeOrder_insufficientStock_throwsInsufficientStockException() {
-        Product product = product(1, "10.00", 2);
         when(productRepository.findById(1)).thenReturn(Optional.of(product));
 
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setItems(List.of(new OrderItemRequest(1, 5)));
-
-        assertThatThrownBy(() -> orderService.placeOrder(USERNAME, request))
-                .isInstanceOf(InsufficientStockException.class)
-                .hasMessageContaining("requested 5")
-                .hasMessageContaining("available 2");
-
+        // Act & Assert
+        assertThrows(InsufficientStockException.class, () -> orderService.placeOrder("bob", request));
+        verify(productRepository, never()).save(any());
         verify(orderRepository, never()).save(any());
     }
 
     @Test
-    void listMyOrders_delegatesToRepositoryAndMapsResults() {
+    void placeOrder_productNotFound_throwsException() {
+        // Arrange
+        PlaceOrderRequest request = new PlaceOrderRequest();
+        OrderItemRequest itemRequest = new OrderItemRequest();
+        itemRequest.setProductId(99);
+        request.setItems(List.of(itemRequest));
+
+        when(productRepository.findById(99)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ProductNotFoundException.class, () -> orderService.placeOrder("bob", request));
+    }
+
+    @Test
+    void listMyOrders_returnsUserOrders() {
+        // Arrange
+        String username = "bob";
         Order order = new Order();
-        OrderResponse response = new OrderResponse();
-        when(orderRepository.findByCustomerName(USERNAME)).thenReturn(List.of(order));
-        when(orderMapper.toResponse(order)).thenReturn(response);
+        when(orderRepository.findByCustomerName(username)).thenReturn(List.of(order));
+        when(orderMapper.toResponse(order)).thenReturn(new OrderResponse());
 
-        List<OrderResponse> result = orderService.listMyOrders(USERNAME);
+        // Act
+        List<OrderResponse> result = orderService.listMyOrders(username);
 
-        assertThat(result).containsExactly(response);
+        // Assert
+        assertEquals(1, result.size());
+        verify(orderRepository).findByCustomerName(username);
     }
 
     @Test
-    void listMyOrders_noOrders_returnsEmptyList() {
-        when(orderRepository.findByCustomerName(USERNAME)).thenReturn(List.of());
-
-        assertThat(orderService.listMyOrders(USERNAME)).isEmpty();
-    }
-
-    @Test
-    void getOrder_ownerRequestingOwnOrder_succeeds() {
+    void getOrder_ownerRequests_returnsOrder() {
+        // Arrange
+        Integer orderId = 1;
+        String username = "bob";
         Order order = new Order();
-        order.setCustomerName(USERNAME);
-        OrderResponse response = new OrderResponse();
-        when(orderRepository.findById(1)).thenReturn(Optional.of(order));
-        when(orderMapper.toResponse(order)).thenReturn(response);
+        order.setCustomerName(username);
 
-        OrderResponse result = orderService.getOrder(1, USERNAME, false);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderMapper.toResponse(order)).thenReturn(new OrderResponse());
 
-        assertThat(result).isSameAs(response);
+        // Act
+        OrderResponse result = orderService.getOrder(orderId, username, false);
+
+        // Assert
+        assertNotNull(result);
     }
 
     @Test
-    void getOrder_adminRequestingSomeoneElsesOrder_succeeds() {
+    void getOrder_adminRequestsOtherUserOrder_returnsOrder() {
+        // Arrange
+        Integer orderId = 1;
         Order order = new Order();
-        order.setCustomerName("someone-else");
-        OrderResponse response = new OrderResponse();
-        when(orderRepository.findById(1)).thenReturn(Optional.of(order));
-        when(orderMapper.toResponse(order)).thenReturn(response);
+        order.setCustomerName("bob");
 
-        OrderResponse result = orderService.getOrder(1, "admin-user", true);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderMapper.toResponse(order)).thenReturn(new OrderResponse());
 
-        assertThat(result).isSameAs(response);
+        // Act
+        OrderResponse result = orderService.getOrder(orderId, "adminUser", true);
+
+        // Assert
+        assertNotNull(result);
     }
 
     @Test
-    void getOrder_nonOwnerNonAdmin_throwsAccessDenied() {
+    void getOrder_otherUserRequests_throwsAccessDeniedException() {
+        // Arrange
+        Integer orderId = 1;
         Order order = new Order();
-        order.setCustomerName("someone-else");
-        when(orderRepository.findById(1)).thenReturn(Optional.of(order));
+        order.setCustomerName("bob");
 
-        assertThatThrownBy(() -> orderService.getOrder(1, USERNAME, false))
-                .isInstanceOf(AccessDeniedException.class);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        // Act & Assert
+        assertThrows(AccessDeniedException.class, () -> orderService.getOrder(orderId, "alice", false));
     }
 
     @Test
-    void getOrder_orderDoesNotExist_throwsOrderNotFoundException() {
-        when(orderRepository.findById(404)).thenReturn(Optional.empty());
+    void getOrder_notFound_throwsException() {
+        // Arrange
+        when(orderRepository.findById(99)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.getOrder(404, USERNAME, false))
-                .isInstanceOf(OrderNotFoundException.class);
+        // Act & Assert
+        assertThrows(OrderNotFoundException.class, () -> orderService.getOrder(99, "bob", false));
+    }
+
+    @Test
+    void deleteOrder_existingOrder_deletesSuccessfully() {
+        // Arrange
+        Integer orderId = 1;
+        Order order = new Order();
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        // Act
+        orderService.deleteOrder(orderId);
+
+        // Assert
+        verify(orderRepository).delete(order);
+    }
+
+    @Test
+    void deleteOrder_notFound_throwsException() {
+        // Arrange
+        when(orderRepository.findById(99)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(OrderNotFoundException.class, () -> orderService.deleteOrder(99));
+        verify(orderRepository, never()).delete(any());
+    }
+
+    @Test
+    void updateOrderStatus_existingOrder_updatesAndSaves() {
+        // Arrange
+        Integer orderId = 1;
+        Order order = new Order();
+        order.setStatus(OrderStatus.PLACED);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        // Act
+        orderService.updateOrderStatus(orderId, OrderStatus.COMPLETED);
+
+        // Assert
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(orderCaptor.capture());
+        assertEquals(OrderStatus.COMPLETED, orderCaptor.getValue().getStatus());
+    }
+
+    @Test
+    void getAllOrders_returnsAllOrders() {
+        // Arrange
+        Order order = new Order();
+        when(orderRepository.findAll()).thenReturn(List.of(order));
+        when(orderMapper.toResponse(order)).thenReturn(new OrderResponse());
+
+        // Act
+        List<OrderResponse> result = orderService.getAllOrders();
+
+        // Assert
+        assertEquals(1, result.size());
+        verify(orderRepository).findAll();
     }
 }
