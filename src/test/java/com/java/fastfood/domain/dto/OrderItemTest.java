@@ -42,16 +42,6 @@ class OrderItemTest {
         assertThat(item.lineTotal()).isEqualByComparingTo(new BigDecimal(expected));
     }
 
-//    @ParameterizedTest
-//    @CsvFileSource(resources = "/line-total-cases.csv", numLinesToSkip = 1)
-//    void lineTotal_csvFileSource(String unitPrice, int quantity, String expected) {
-//        OrderItem item = new OrderItem();
-//        item.setUnitPrice(new BigDecimal(unitPrice));
-//        item.setQuantity(quantity);
-//
-//        assertThat(item.lineTotal()).isEqualByComparingTo(new BigDecimal(expected));
-//    }
-
     @ParameterizedTest
     @MethodSource("highQuantityLineTotals")
     void lineTotal_methodSource(BigDecimal unitPrice, int quantity, BigDecimal expected) {
