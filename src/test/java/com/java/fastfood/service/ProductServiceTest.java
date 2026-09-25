@@ -50,7 +50,7 @@ class ProductServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(response, result.get(0));
+        assertEquals(response, result.getFirst());
     }
 
     @Test
