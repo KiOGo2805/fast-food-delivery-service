@@ -1,5 +1,6 @@
 package com.java.fastfood.domain.dto;
 
+import com.java.fastfood.annotation.validation.ValidProductPricing;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ValidProductPricing
 public class ProductCreateRequest {
 
     @NotBlank

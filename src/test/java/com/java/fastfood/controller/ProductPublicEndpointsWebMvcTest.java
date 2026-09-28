@@ -1,5 +1,6 @@
 package com.java.fastfood.controller;
 
+import static org.hamcrest.Matchers.containsString;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java.fastfood.domain.dto.ProductCreateRequest;
 import com.java.fastfood.domain.dto.ProductResponse;
@@ -92,5 +93,17 @@ class ProductPublicEndpointsWebMvcTest {
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(valid)))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void createProduct_comboWithLowPrice_returns400() throws Exception {
+        ProductCreateRequest comboRequest = new ProductCreateRequest(
+                "Super Combo", "Large meal", "Mains", new BigDecimal("10.00"), 5);
+
+        mockMvc.perform(post("/api/products")
+                        .contentType("application/json")
+                        .content(objectMapper.writeValueAsString(comboRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("Combo products must have a price of at least 15.0")));
     }
 }

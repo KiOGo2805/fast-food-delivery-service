@@ -1,5 +1,8 @@
 package com.java.fastfood.controller;
 
+import com.java.fastfood.annotation.ClientInfo;
+import com.java.fastfood.annotation.ClientInfoData;
+import com.java.fastfood.annotation.PostCreated;
 import com.java.fastfood.domain.dto.ProductCreateRequest;
 import com.java.fastfood.domain.dto.ProductResponse;
 import com.java.fastfood.domain.dto.ProductUpdateRequest;
@@ -24,13 +27,17 @@ public class ProductController {
         return productService.listAll();
     }
 
+    @GetMapping("/info")
+    public ClientInfoData getClientInfo(@ClientInfo ClientInfoData clientInfo) {
+        return clientInfo;
+    }
+
     @GetMapping("/{id}")
     public ProductResponse getById(@PathVariable Integer id) {
         return productService.getById(id);
     }
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+    @PostCreated
     public ProductResponse create(@Valid @RequestBody ProductCreateRequest request) {
         return productService.create(request);
     }

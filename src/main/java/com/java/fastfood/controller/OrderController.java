@@ -1,5 +1,6 @@
 package com.java.fastfood.controller;
 
+import com.java.fastfood.annotation.PostCreated;
 import com.java.fastfood.domain.dto.OrderResponse;
 import com.java.fastfood.domain.dto.PlaceOrderRequest;
 import com.java.fastfood.domain.enums.OrderStatus;
@@ -22,8 +23,7 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+    @PostCreated
     public OrderResponse placeOrder(@Valid @RequestBody PlaceOrderRequest request,
                                      @AuthenticationPrincipal CurrentUser user) {
         return orderService.placeOrder(user.username(), request);
