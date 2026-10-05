@@ -1,9 +1,16 @@
 package com.java.fastfood.exception;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+
+import java.lang.reflect.Method;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,5 +70,21 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().getMessage())
                 .contains("requested 5")
                 .contains("available 2");
+    }
+
+    @Test
+    void handlesMethodArgumentNotValidException_asBadRequest() throws NoSuchMethodException {
+        Method method = GlobalExceptionHandlerTest.class.getDeclaredMethod("handlesMethodArgumentNotValidException_asBadRequest");
+        MethodParameter parameter = new MethodParameter(method, -1);
+        BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "object");
+        bindingResult.addError(new FieldError("object", "field", "rejected value", false, null, null, "validation error message"));
+        
+        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(parameter, bindingResult);
+
+        ResponseEntity<ApplicationErrorResponse> response = handler.handle(ex);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("validation error message", response.getBody().getMessage());
     }
 }

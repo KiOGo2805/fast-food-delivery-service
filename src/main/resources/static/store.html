@@ -61,6 +61,17 @@
 <div class="admin-panel" id="adminPanel">
   <h2>🛠️ Панель Адміністратора</h2>
   <button onclick="loadAllOrders()">Завантажити ВСІ замовлення бази</button>
+  <div style="margin: 20px 0; padding: 15px; background: white; border-radius: 8px; border: 1px solid #ddd;">
+    <h3 style="margin-top: 0;">🆕 Додати новий товар</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <input type="text" id="newProdName" placeholder="Назва товару">
+      <input type="text" id="newProdCategory" placeholder="Категорія">
+      <input type="text" id="newProdDescription" placeholder="Опис" style="grid-column: span 2;">
+      <input type="number" step="0.01" id="newProdPrice" placeholder="Ціна (грн)">
+      <input type="number" id="newProdStock" placeholder="Залишок на складі">
+    </div>
+    <button onclick="createProduct()" style="margin-top: 10px; background-color: #28a745;">Створити продукт</button>
+  </div>
   <table id="adminOrdersTable">
     <thead><tr><th>ID</th><th>Клієнт</th><th>Сума</th><th>Поточний статус</th><th>Змінити статус</th><th>Дії</th></tr></thead>
     <tbody></tbody>
@@ -163,6 +174,44 @@
     } else {
       const err = await res.text();
       show(`Помилка видалення продукту ${id}: ${res.status}\n${err}`);
+    }
+  }
+
+  async function createProduct() {
+    const name = document.getElementById('newProdName').value;
+    const description = document.getElementById('newProdDescription').value;
+    const category = document.getElementById('newProdCategory').value;
+    const price = parseFloat(document.getElementById('newProdPrice').value);
+    const stockQuantity = parseInt(document.getElementById('newProdStock').value);
+
+    if (!name || !description || !category || isNaN(price) || isNaN(stockQuantity)) {
+      alert('Будь ласка, заповніть всі поля коректно');
+      return;
+    }
+
+    const body = { name, description, category, price, stockQuantity };
+    show('Створення продукту...');
+
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      show('Продукт успішно створено!');
+      document.getElementById('newProdName').value = '';
+      document.getElementById('newProdDescription').value = '';
+      document.getElementById('newProdCategory').value = '';
+      document.getElementById('newProdPrice').value = '';
+      document.getElementById('newProdStock').value = '';
+      await loadProducts();
+    } else {
+      const err = await res.text();
+      show(`Помилка створення продукту: ${res.status}\n${err}`);
     }
   }
 

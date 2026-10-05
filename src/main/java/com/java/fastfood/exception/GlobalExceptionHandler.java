@@ -1,11 +1,15 @@
 package com.java.fastfood.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
@@ -45,5 +49,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApplicationErrorResponse> handle(ProductInUseException ex) {
         log.error("ProductInUseException: ", ex);
         return new ResponseEntity<>(new ApplicationErrorResponse(ex), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApplicationErrorResponse> handle(MethodArgumentNotValidException ex) {
+        log.error("MethodArgumentNotValidException: ", ex);
+        String message = ex.getBindingResult().getAllErrors().stream()
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .collect(Collectors.joining(", "));
+        return new ResponseEntity<>(new ApplicationErrorResponse(message), HttpStatus.BAD_REQUEST);
     }
 }

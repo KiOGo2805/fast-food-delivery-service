@@ -31,7 +31,7 @@ class ProductPricingValidatorTest {
         request.setName("Big Combo");
         request.setDescription("Large meal");
         request.setCategory("Mains");
-        request.setPrice(new BigDecimal("10.0")); // Too low for Combo
+        request.setPrice(new BigDecimal("10.0"));
         request.setStockQuantity(100);
 
         Set<ConstraintViolation<ProductCreateRequest>> violations = validator.validate(request);

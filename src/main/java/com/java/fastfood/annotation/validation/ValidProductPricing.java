@@ -13,7 +13,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidProductPricing {
-    String message() default "Combo products must have a price of at least 15.0";
+    String message() default "Combo products must have a price of at least 100.0";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }
