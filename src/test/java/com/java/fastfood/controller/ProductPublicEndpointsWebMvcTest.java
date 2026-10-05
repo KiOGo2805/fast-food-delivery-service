@@ -104,6 +104,6 @@ class ProductPublicEndpointsWebMvcTest {
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(comboRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string(containsString("Combo products must have a price of at least 15.0")));
+                .andExpect(content().string(containsString("Combo products must have a price of at least 100.0")));
     }
 }

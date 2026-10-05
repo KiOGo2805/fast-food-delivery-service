@@ -37,7 +37,7 @@ class ProductPricingValidatorTest {
         Set<ConstraintViolation<ProductCreateRequest>> violations = validator.validate(request);
 
         assertEquals(1, violations.size());
-        assertEquals("Combo products must have a price of at least 15.0", violations.iterator().next().getMessage());
+        assertEquals("Combo products must have a price of at least 100.0", violations.iterator().next().getMessage());
     }
 
     @Test
@@ -46,7 +46,7 @@ class ProductPricingValidatorTest {
         request.setName("Big Combo");
         request.setDescription("Large meal");
         request.setCategory("Mains");
-        request.setPrice(new BigDecimal("20.0"));
+        request.setPrice(new BigDecimal("120.0"));
         request.setStockQuantity(100);
 
         Set<ConstraintViolation<ProductCreateRequest>> violations = validator.validate(request);
