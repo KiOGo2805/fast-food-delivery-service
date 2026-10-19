@@ -69,10 +69,35 @@ public class OrderService {
         }
 
         order.setTotalAmount(total);
-
         order.setStatus(OrderStatus.CONFIRMED);
 
-        return orderMapper.toResponse(orderRepository.save(order));
+        Order savedOrder = orderRepository.save(order);
+
+        // Slow side effects
+        sendOrderConfirmationEmail(savedOrder);
+        callLoyaltyService(savedOrder);
+
+        return orderMapper.toResponse(savedOrder);
+    }
+
+    private void sendOrderConfirmationEmail(Order order) {
+        log.info("Sending confirmation email to {}", order.getCustomerEmail());
+        try {
+            Thread.sleep(1000); // Simulate network delay
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        log.info("Confirmation email sent to {}", order.getCustomerEmail());
+    }
+
+    private void callLoyaltyService(Order order) {
+        log.info("Calling loyalty service for customer {}", order.getCustomerName());
+        try {
+            Thread.sleep(1200); // Simulate external service call
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        log.info("Loyalty points awarded for order {}", order.getId());
     }
 
     @Transactional(readOnly = true)
@@ -122,7 +147,21 @@ public class OrderService {
                 .orElseThrow(() -> new OrderNotFoundException(orderID));
 
         order.setStatus(newStatus);
-        orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
+
+        if (newStatus == OrderStatus.CONFIRMED) {
+            generateOrderInvoicePdf(savedOrder);
+        }
+    }
+
+    private void generateOrderInvoicePdf(Order order) {
+        log.info("Generating PDF invoice for order {}", order.getId());
+        try {
+            Thread.sleep(1500); // Simulate heavy PDF generation
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        log.info("PDF invoice generated for order {}", order.getId());
     }
 
     @Transactional(readOnly = true)
