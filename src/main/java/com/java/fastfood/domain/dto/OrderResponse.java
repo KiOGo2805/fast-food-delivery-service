@@ -1,10 +1,7 @@
 package com.java.fastfood.domain.dto;
 
 import com.java.fastfood.domain.enums.OrderStatus;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -14,6 +11,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 public class OrderResponse {
     private Integer id;
     private List<OrderItemResponse> items;

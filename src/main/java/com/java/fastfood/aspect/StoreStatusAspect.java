@@ -17,9 +17,15 @@ public class StoreStatusAspect {
     public void checkStoreIsOpen(JoinPoint joinPoint) {
         log.info("Business rule check: Verifying store is open before executing '{}'", joinPoint.getSignature().getName());
 
-        LocalTime now = LocalTime.now();
-        if (now.isBefore(LocalTime.of(8, 0)) || now.isAfter(LocalTime.of(23, 0))) {
+        LocalTime now = getCurrentTime();
+
+        if (now.isBefore(LocalTime.of(8, 0)) || now.isAfter(LocalTime.of(22, 0))) {
+            log.warn("Store is closed. Blocking execution.");
             throw new IllegalStateException("Sorry, the restaurant is currently closed.");
         }
+    }
+
+    protected LocalTime getCurrentTime() {
+        return LocalTime.now();
     }
 }

@@ -61,10 +61,9 @@ Content-Type: application/json
 ### =========================================
 ### 2. ОНОВЛЕННЯ ПРОДУКТУ
 ### =========================================
-# Заміни '15' на ID продукту, який ти щойно створив
 
 ### 2.1. Юзер намагається оновити (Очікуємо: 403 Forbidden)
-PUT {{host}}/api/products/15
+PUT {{host}}/api/products/6
 Authorization: Bearer {{user_token}}
 Content-Type: application/json
 
@@ -77,7 +76,7 @@ Content-Type: application/json
 }
 
 ### 2.2. Адмін оновлює (Очікуємо: 200 OK)
-PUT {{host}}/api/products/15
+PUT {{host}}/api/products/6
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 
@@ -95,7 +94,6 @@ Content-Type: application/json
 ### =========================================
 
 ### 3.1. Юзер робить замовлення (Очікуємо: 201 Created або 200 OK)
-# Зверни увагу на ID створеного замовлення у відповіді (наприклад, 5)
 POST {{host}}/api/orders
 Authorization: Bearer {{user_token}}
 Content-Type: application/json
@@ -103,7 +101,7 @@ Content-Type: application/json
 {
   "items": [
     {
-      "productId": 15,
+      "productId": 1,
       "quantity": 1
     }
   ],
@@ -115,7 +113,6 @@ Content-Type: application/json
 ### =========================================
 ### 4. ЗМІНА СТАТУСУ ЗАМОВЛЕННЯ
 ### =========================================
-# Заміни '5' на ID замовлення з кроку 3
 
 ### 4.1. Юзер намагається змінити статус (Очікуємо: 403 Forbidden)
 PATCH {{host}}/api/orders/5/status?newStatus=DELIVERED
@@ -148,7 +145,6 @@ DELETE {{host}}/api/products/15
 Authorization: Bearer {{user_token}}
 
 ### 6.2. Адмін видаляє продукт (Очікуємо: 204 No Content)
-# (Замовлення ми щойно видалили на кроці 5, тому конфлікту зовнішніх ключів у БД не буде)
 DELETE {{host}}/api/products/15
 Authorization: Bearer {{admin_token}}
 
@@ -161,7 +157,6 @@ GET {{host}}/api/orders/mine
 Authorization: Bearer {{user_token}}
 
 ### 7.2. Адмін переглядає свої замовлення (Очікуємо: 200 OK)
-# Адмін теж юзер і може замовляти їжу для себе
 GET {{host}}/api/orders/mine
 Authorization: Bearer {{admin_token}}
 
