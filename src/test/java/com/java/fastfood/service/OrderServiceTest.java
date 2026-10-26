@@ -37,6 +37,8 @@ class OrderServiceTest {
     private OrderRepository orderRepository;
     @Mock
     private OrderMapper orderMapper;
+    @Mock
+    private ExternalServiceSim externalServiceSim;
 
     @InjectMocks
     private OrderService orderService;
