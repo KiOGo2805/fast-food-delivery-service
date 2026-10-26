@@ -67,4 +67,15 @@ public class OrderController {
     public List<OrderResponse> getAllOrders() {
         return orderService.getAllOrders();
     }
+
+
+    @GetMapping("/{id}/async-details")
+    public String getAsyncDetails(@PathVariable Integer id) {
+        return orderService.processOrderAsyncDetails(id);
+    }
+
+    @GetMapping("/test-timeout")
+    public String testTimeout() {
+        return orderService.testTimeout();
+    }
 }

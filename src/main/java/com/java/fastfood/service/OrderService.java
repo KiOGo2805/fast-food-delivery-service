@@ -22,6 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -35,6 +39,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
+    private final ExternalServiceSim externalServiceSim;
 
     @Transactional
     public OrderResponse placeOrder(String customerUsername, PlaceOrderRequest request) {
@@ -69,35 +74,14 @@ public class OrderService {
         }
 
         order.setTotalAmount(total);
+
         order.setStatus(OrderStatus.CONFIRMED);
 
         Order savedOrder = orderRepository.save(order);
 
-        // Slow side effects
-        sendOrderConfirmationEmail(savedOrder);
-        callLoyaltyService(savedOrder);
+        externalServiceSim.sendEmailNotification(savedOrder.getCustomerEmail(), "Order " + savedOrder.getId() + " placed");
 
         return orderMapper.toResponse(savedOrder);
-    }
-
-    private void sendOrderConfirmationEmail(Order order) {
-        log.info("Sending confirmation email to {}", order.getCustomerEmail());
-        try {
-            Thread.sleep(1000); // Simulate network delay
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        log.info("Confirmation email sent to {}", order.getCustomerEmail());
-    }
-
-    private void callLoyaltyService(Order order) {
-        log.info("Calling loyalty service for customer {}", order.getCustomerName());
-        try {
-            Thread.sleep(1200); // Simulate external service call
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        log.info("Loyalty points awarded for order {}", order.getId());
     }
 
     @Transactional(readOnly = true)
@@ -147,21 +131,7 @@ public class OrderService {
                 .orElseThrow(() -> new OrderNotFoundException(orderID));
 
         order.setStatus(newStatus);
-        Order savedOrder = orderRepository.save(order);
-
-        if (newStatus == OrderStatus.CONFIRMED) {
-            generateOrderInvoicePdf(savedOrder);
-        }
-    }
-
-    private void generateOrderInvoicePdf(Order order) {
-        log.info("Generating PDF invoice for order {}", order.getId());
-        try {
-            Thread.sleep(1500); // Simulate heavy PDF generation
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        log.info("PDF invoice generated for order {}", order.getId());
+        orderRepository.save(order);
     }
 
     @Transactional(readOnly = true)
@@ -169,5 +139,63 @@ public class OrderService {
         return orderRepository.findAll().stream()
                 .map(orderMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+
+    public String processOrderAsyncDetails(Integer orderId) {
+        CompletableFuture<String> invoiceFuture = externalServiceSim.generateOrderInvoice(orderId)
+                .exceptionally(ex -> {
+                    log.error("Failed to generate invoice for order {}: {}", orderId, ex.getMessage());
+                    return "Invoice-Failed";
+                });
+
+        CompletableFuture<String> logisticsFuture = externalServiceSim.callExternalLogistics(orderId)
+                .handle((res, ex) -> {
+                    if (ex != null) {
+                        log.error("Logistics call failed for order {}: {}", orderId, ex.getMessage());
+                        return "Logistics-Unavailable";
+                    }
+                    return res;
+                });
+
+        try {
+            return invoiceFuture.thenCombine(logisticsFuture, (invoice, logistics) ->
+                    "Combined Result: " + invoice + " | " + logistics
+            ).get(2, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            log.error("Async operations timed out for order {}", orderId);
+            return "Processing-Timeout";
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Error combining async results for order {}", orderId, e);
+            return "Processing-Error";
+        }
+    }
+
+    public String triggerRejectedExecution(String name) {
+        try {
+            return externalServiceSim.slowSmallTask(name).get(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("Task rejected or failed for {}: {}", name, e.getMessage());
+            Throwable cause = e;
+            while (cause != null) {
+                if (cause instanceof java.util.concurrent.RejectedExecutionException) {
+                    return "System-Overloaded-Try-Later";
+                }
+                cause = cause.getCause();
+            }
+            return "Error-" + e.getMessage();
+        }
+    }
+
+    public String testTimeout() {
+        try {
+            return externalServiceSim.verySlowTask().get(1, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("Caught expected timeout");
+            return "Timeout-Caught";
+        } catch (Exception e) {
+            log.error("Unexpected error in testTimeout", e);
+            return "Error";
+        }
     }
 }

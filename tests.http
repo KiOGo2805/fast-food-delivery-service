@@ -167,3 +167,37 @@ Authorization: Bearer {{user_token}}
 ### 7.4. Адмін отримує абсолютно всі замовлення бази (Очікуємо: 200 OK)
 GET {{host}}/api/orders
 Authorization: Bearer {{admin_token}}
+
+### =========================================
+### ЛАБОРАТОРНА №5: АСИНХРОННА ОБРОБКА
+### =========================================
+
+### 1. Створення замовлення
+POST {{host}}/api/orders
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 1
+    }
+  ],
+  "deliveryAddress": "Вул. Головна, 1",
+  "needsCutlery": true
+}
+
+### 2. Паралельні виклики
+GET {{host}}/api/orders/1/async-details
+Authorization: Bearer {{admin_token}}
+
+
+### 3. Невдалий виклик
+GET {{host}}/api/orders/666/async-details
+Authorization: Bearer {{admin_token}}
+
+
+### 4. Очікування обмежене в часі (TimeoutException)
+GET {{host}}/api/orders/test-timeout
+Authorization: Bearer {{admin_token}}
