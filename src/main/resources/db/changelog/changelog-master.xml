@@ -6,5 +6,6 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="db/changelog/001-initial-data.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/003-quartz.xml"/>
 
 </databaseChangeLog>
