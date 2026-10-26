@@ -1,5 +1,6 @@
 package com.java.fastfood.repository;
 
+import com.java.fastfood.domain.enums.OrderStatus;
 import com.java.fastfood.domain.model.Order;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,4 +18,6 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
 
     @Query("SELECT COUNT(o) > 0 FROM Order o JOIN o.items oi WHERE oi.product.id = :productId")
     boolean existsByProductId(@Param("productId") Integer productId);
+
+    List<Order> findByStatus(OrderStatus status);
 }
