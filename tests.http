@@ -115,11 +115,11 @@ Content-Type: application/json
 ### =========================================
 
 ### 4.1. Юзер намагається змінити статус (Очікуємо: 403 Forbidden)
-PATCH {{host}}/api/orders/5/status?newStatus=DELIVERED
+PATCH {{host}}/api/orders/5/status?newStatus=COMPLETED
 Authorization: Bearer {{user_token}}
 
 ### 4.2. Адмін змінює статус (Очікуємо: 200 OK)
-PATCH {{host}}/api/orders/5/status?newStatus=DELIVERED
+PATCH {{host}}/api/orders/1/status?newStatus=COMPLETED
 Authorization: Bearer {{admin_token}}
 
 

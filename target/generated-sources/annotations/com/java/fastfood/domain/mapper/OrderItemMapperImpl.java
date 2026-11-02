@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-10-26T18:40:53+0200",
-    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 21.0.12.1 (Microsoft)"
+    date = "2026-10-30T14:48:16+0200",
+    comments = "version: 1.6.3, compiler: Eclipse JDT (IDE) 3.46.200.v20261008-1115, environment: Java 25.0.4.1 (Eclipse Adoptium)"
 )
 @Component
 public class OrderItemMapperImpl implements OrderItemMapper {
@@ -33,32 +33,18 @@ public class OrderItemMapperImpl implements OrderItemMapper {
     }
 
     private Integer orderItemProductId(OrderItem orderItem) {
-        if ( orderItem == null ) {
-            return null;
-        }
         Product product = orderItem.getProduct();
         if ( product == null ) {
             return null;
         }
-        Integer id = product.getId();
-        if ( id == null ) {
-            return null;
-        }
-        return id;
+        return product.getId();
     }
 
     private String orderItemProductName(OrderItem orderItem) {
-        if ( orderItem == null ) {
-            return null;
-        }
         Product product = orderItem.getProduct();
         if ( product == null ) {
             return null;
         }
-        String name = product.getName();
-        if ( name == null ) {
-            return null;
-        }
-        return name;
+        return product.getName();
     }
 }

@@ -75,7 +75,7 @@ public class OrderService {
 
         order.setTotalAmount(total);
 
-        order.setStatus(OrderStatus.CONFIRMED);
+        order.setStatus(OrderStatus.PLACED);
 
         Order savedOrder = orderRepository.save(order);
 
@@ -196,6 +196,29 @@ public class OrderService {
         } catch (Exception e) {
             log.error("Unexpected error in testTimeout", e);
             return "Error";
+        }
+    }
+
+
+    @Transactional
+    public void processOrdersInBulk(OrderStatus currentStatus) {
+        List<Order> orders = orderRepository.findByStatus(currentStatus);
+        if (orders.isEmpty()) {
+            return;
+        }
+        for (Order order : orders) {
+            order.setStatus(OrderStatus.CONFIRMED);
+            orderRepository.save(order);
+            log.info("Order ID: {} status updated from {} to CONFIRMED", order.getId(), currentStatus);
+        }
+    }
+
+    @Transactional
+    public void cleanupOrdersInBulk(OrderStatus status) {
+        List<Order> orders = orderRepository.findByStatus(status);
+        if (!orders.isEmpty()) {
+            orderRepository.deleteAll(orders);
+            log.info("Deleted {} orders with status {}", orders.size(), status);
         }
     }
 }

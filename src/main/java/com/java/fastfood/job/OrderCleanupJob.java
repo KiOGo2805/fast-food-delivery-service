@@ -1,18 +1,11 @@
 package com.java.fastfood.job;
 
 import com.java.fastfood.domain.enums.OrderStatus;
-import com.java.fastfood.domain.model.Order;
-import com.java.fastfood.repository.OrderRepository;
 import com.java.fastfood.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.quartz.DisallowConcurrentExecution;
-import org.quartz.Job;
-import org.quartz.JobExecutionContext;
-import org.quartz.JobExecutionException;
+import org.quartz.*;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 @Slf4j
 @Component
@@ -20,29 +13,38 @@ import java.util.List;
 @DisallowConcurrentExecution
 public class OrderCleanupJob implements Job {
 
-    private final OrderRepository orderRepository;
     private final OrderService orderService;
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
-        log.info("OrderCleanupJob started execution");
-        
-        List<Order> declinedOrders = orderRepository.findByStatus(OrderStatus.DECLINED);
-        
-        if (declinedOrders.isEmpty()) {
-            log.info("No orders in DECLINED status found for cleanup.");
-            return;
+        JobDataMap dataMap = context.getMergedJobDataMap();
+
+        if (!dataMap.containsKey("targetStatus")) {
+            throw new JobExecutionException("Відсутній обов'язковий параметр: targetStatus");
         }
-        
-        log.info("Found {} declined orders to remove", declinedOrders.size());
-        for (Order order : declinedOrders) {
-            try {
-                orderService.deleteOrder(order.getId());
-                log.info("Removed order ID: {}", order.getId());
-            } catch (Exception e) {
-                log.error("Failed to delete order ID: {}", order.getId(), e);
+
+        String targetStatusStr = dataMap.getString("targetStatus");
+        OrderStatus targetStatus;
+        try {
+            targetStatus = OrderStatus.valueOf(targetStatusStr);
+        } catch (IllegalArgumentException e) {
+            throw new JobExecutionException("Невірний статус: " + targetStatusStr, e);
+        }
+
+        log.info("OrderCleanupJob started for status: {}", targetStatus);
+
+        try {
+            orderService.cleanupOrdersInBulk(targetStatus);
+        } catch (Exception e) {
+            int refireCount = context.getRefireCount();
+            if (refireCount < 3) {
+                log.warn("Failed to cleanup orders. Refiring (attempt {})...", refireCount + 1);
+                JobExecutionException je = new JobExecutionException(e);
+                je.setRefireImmediately(true);
+                throw je;
+            } else {
+                log.error("Failed to cleanup orders after 3 attempts.", e);
             }
         }
-        log.info("OrderCleanupJob finished execution.");
     }
 }
