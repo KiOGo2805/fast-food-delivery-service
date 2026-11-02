@@ -3,7 +3,7 @@
 The repository is a Maven multi-module build containing two independently runnable Spring Boot services:
 
 - `product-service` owns the product catalog and stock, listens on port `8082`, and uses the `products_db` schema.
-- `order-service` owns orders, listens on port `8081`, and uses the `orders_db` schema. It reserves stock through the product service's internal HTTP API; it has no Maven dependency on `product-service`.
+- `order-service` owns orders, listens on port `8081`, and uses the `orders_db` schema. It reserves stock through the product service's internal HTTP API and releases completed reservations if order creation fails; it has no Maven dependency on `product-service`.
 
 Both modules have their own entry point, configuration, tests, and Dockerfile. The root POM aggregates the modules and contains shared build settings and test dependencies.
 
@@ -67,6 +67,8 @@ docker build -f order-service/Dockerfile -t fastfood-order-service .
 ```
 
 The Compose configuration sets the internal service URLs and ports. For deployment, provide a unique `PRODUCT_SERVICE_API_KEY`, configure external database credentials, and adjust the browser-facing URLs and allowed origin.
+
+When running the services separately outside Compose, both use `12345` as the development fallback for `PRODUCT_SERVICE_API_KEY`. Set the same key explicitly in both environments for any non-local deployment.
 
 ## API
 

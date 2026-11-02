@@ -31,12 +31,25 @@ public class InternalProductController {
             @PathVariable Integer id,
             @RequestParam @Min(1) int quantity,
             @RequestHeader(name = "X-Internal-Api-Key", required = false) String apiKey) {
+        validateApiKey(apiKey);
+        return productService.reserve(id, quantity);
+    }
+
+    @PostMapping("/api/internal/products/{id}/release")
+    public ProductResponse release(
+            @PathVariable Integer id,
+            @RequestParam @Min(1) int quantity,
+            @RequestHeader(name = "X-Internal-Api-Key", required = false) String apiKey) {
+        validateApiKey(apiKey);
+        return productService.release(id, quantity);
+    }
+
+    private void validateApiKey(String apiKey) {
         if (expectedApiKey.isBlank() || apiKey == null || apiKey.isBlank()
                 || !MessageDigest.isEqual(
                         expectedApiKey.getBytes(StandardCharsets.UTF_8),
                         apiKey.getBytes(StandardCharsets.UTF_8))) {
             throw new AccessDeniedException("Invalid product service API key");
         }
-        return productService.reserve(id, quantity);
     }
 }

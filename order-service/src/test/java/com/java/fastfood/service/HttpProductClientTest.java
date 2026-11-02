@@ -76,4 +76,19 @@ class HttpProductClientTest {
         assertEquals("Insufficient stock for product 7: requested 5, available 3", exception.getMessage());
         server.verify();
     }
+
+    @Test
+    void releaseProduct_sendsApiKeyAndAcceptsSuccessfulResponse() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("http://product-service/api/internal/products/7/release?quantity=2"))
+                .andExpect(method(POST))
+                .andExpect(header("X-Internal-Api-Key", "internal-key"))
+                .andRespond(withSuccess());
+        HttpProductClient client = new HttpProductClient(builder, "http://product-service", "internal-key");
+
+        client.releaseProduct(7, 2);
+
+        server.verify();
+    }
 }

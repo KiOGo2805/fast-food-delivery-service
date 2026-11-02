@@ -4,4 +4,6 @@ import com.java.fastfood.domain.dto.ProductInfo;
 
 public interface ProductClient {
     ProductInfo reserveProduct(Integer productId, int quantity);
+
+    void releaseProduct(Integer productId, int quantity);
 }

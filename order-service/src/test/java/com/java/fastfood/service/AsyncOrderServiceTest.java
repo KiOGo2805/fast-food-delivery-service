@@ -28,6 +28,9 @@ public class AsyncOrderServiceTest {
     private ProductClient productClient;
 
     @MockitoBean
+    private OrderCreationService orderCreationService;
+
+    @MockitoBean
     private OrderRepository orderRepository;
 
     @MockitoBean

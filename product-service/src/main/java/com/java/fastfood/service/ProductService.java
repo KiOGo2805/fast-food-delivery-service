@@ -63,6 +63,13 @@ public class ProductService {
         return productMapper.toResponse(productRepository.save(product));
     }
 
+    @Transactional
+    public ProductResponse release(Integer id, int quantity) {
+        Product product = findOrThrow(id);
+        product.setStockQuantity(product.getStockQuantity() + quantity);
+        return productMapper.toResponse(productRepository.save(product));
+    }
+
     private Product findOrThrow(Integer id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException(id));

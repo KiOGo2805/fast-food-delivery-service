@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -34,48 +35,66 @@ public class OrderService {
     private static final BigDecimal BULK_DISCOUNT_RATE = new BigDecimal("0.10");
 
     private final ProductClient productClient;
+    private final OrderCreationService orderCreationService;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final ExternalServiceSim externalServiceSim;
 
-    @Transactional
     public OrderResponse placeOrder(String customerUsername, PlaceOrderRequest request) {
-        Order order = new Order();
-        order.setCustomerName(customerUsername);
-        order.setCustomerEmail(customerUsername + "@example.com");
-        order.setDeliveryAddress(request.getDeliveryAddress());
-        order.setNeedsCutlery(request.getNeedsCutlery());
-        order.setCreatedAt(OffsetDateTime.now());
-        order.setStatus(OrderStatus.PLACED);
+        List<ReservedProduct> reservations = new ArrayList<>();
+        try {
+            Order order = new Order();
+            order.setCustomerName(customerUsername);
+            order.setCustomerEmail(customerUsername + "@example.com");
+            order.setDeliveryAddress(request.getDeliveryAddress());
+            order.setNeedsCutlery(request.getNeedsCutlery());
+            order.setCreatedAt(OffsetDateTime.now());
+            order.setStatus(OrderStatus.PLACED);
 
-        BigDecimal total = BigDecimal.ZERO;
+            BigDecimal total = BigDecimal.ZERO;
+            for (OrderItemRequest itemRequest : request.getItems()) {
+                ProductInfo product = productClient.reserveProduct(
+                        itemRequest.getProductId(), itemRequest.getQuantity());
+                reservations.add(new ReservedProduct(itemRequest.getProductId(), itemRequest.getQuantity()));
 
-        for (OrderItemRequest itemRequest : request.getItems()) {
-            ProductInfo product = productClient.reserveProduct(
-                    itemRequest.getProductId(), itemRequest.getQuantity());
+                BigDecimal unitPrice = product.price();
+                total = total.add(calculateLineTotal(unitPrice, itemRequest.getQuantity()));
 
-            BigDecimal unitPrice = product.price();
-            BigDecimal lineTotal = calculateLineTotal(unitPrice, itemRequest.getQuantity());
-            total = total.add(lineTotal);
+                OrderItem item = new OrderItem();
+                item.setProductId(product.id());
+                item.setProductName(product.name());
+                item.setQuantity(itemRequest.getQuantity());
+                item.setUnitPrice(unitPrice);
+                order.addItem(item);
+            }
 
-            OrderItem item = new OrderItem();
-            item.setProductId(product.id());
-            item.setProductName(product.name());
-            item.setQuantity(itemRequest.getQuantity());
-            item.setUnitPrice(unitPrice);
-            order.addItem(item);
-
+            order.setTotalAmount(total);
+            return orderCreationService.createOrder(order);
+        } catch (RuntimeException exception) {
+            releaseReservations(reservations, exception);
+            throw exception;
         }
+    }
 
-        order.setTotalAmount(total);
+    private void releaseReservations(List<ReservedProduct> reservations, RuntimeException cause) {
+        for (int i = reservations.size() - 1; i >= 0; i--) {
+            ReservedProduct reservation = reservations.get(i);
+            try {
+                productClient.releaseProduct(reservation.productId(), reservation.quantity());
+            } catch (RuntimeException compensationException) {
+                log.error(
+                        "Failed to release {} units of product {} after order creation failed",
+                        reservation.quantity(),
+                        reservation.productId(),
+                        compensationException);
+                if (compensationException != cause) {
+                    cause.addSuppressed(compensationException);
+                }
+            }
+        }
+    }
 
-        order.setStatus(OrderStatus.PLACED);
-
-        Order savedOrder = orderRepository.save(order);
-
-        externalServiceSim.sendEmailNotification(savedOrder.getCustomerEmail(), "Order " + savedOrder.getId() + " placed");
-
-        return orderMapper.toResponse(savedOrder);
+    private record ReservedProduct(Integer productId, int quantity) {
     }
 
     @Transactional(readOnly = true)

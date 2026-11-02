@@ -33,6 +33,8 @@ class OrderServiceTest {
     @Mock
     private ProductClient productClient;
     @Mock
+    private OrderCreationService orderCreationService;
+    @Mock
     private OrderRepository orderRepository;
     @Mock
     private OrderMapper orderMapper;
@@ -57,8 +59,7 @@ class OrderServiceTest {
 
         when(productClient.reserveProduct(1, 2)).thenReturn(
                 new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 8));
-        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(orderMapper.toResponse(any(Order.class))).thenReturn(new OrderResponse());
+        when(orderCreationService.createOrder(any(Order.class))).thenReturn(new OrderResponse());
 
         // Act
         OrderResponse result = orderService.placeOrder(username, request);
@@ -70,7 +71,7 @@ class OrderServiceTest {
 
         // Перевірка створення замовлення та суми
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(orderCaptor.capture());
+        verify(orderCreationService).createOrder(orderCaptor.capture());
         Order savedOrder = orderCaptor.getValue();
 
         assertEquals(username, savedOrder.getCustomerName());
@@ -91,15 +92,14 @@ class OrderServiceTest {
 
         when(productClient.reserveProduct(1, 5)).thenReturn(
                 new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 5));
-        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
-        when(orderMapper.toResponse(any(Order.class))).thenReturn(new OrderResponse());
+        when(orderCreationService.createOrder(any(Order.class))).thenReturn(new OrderResponse());
 
         // Act
         orderService.placeOrder("bob", request);
 
         // Assert
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(orderCaptor.capture());
+        verify(orderCreationService).createOrder(orderCaptor.capture());
 
         // 5 * 100 = 500; знижка 10% = 50; Разом = 450.00
         assertEquals(new BigDecimal("450.0000"), orderCaptor.getValue().getTotalAmount());
@@ -120,6 +120,7 @@ class OrderServiceTest {
         // Act & Assert
         assertThrows(InsufficientStockException.class, () -> orderService.placeOrder("bob", request));
         verify(orderRepository, never()).save(any());
+        verify(productClient, never()).releaseProduct(any(), anyInt());
     }
 
     @Test
@@ -135,6 +136,61 @@ class OrderServiceTest {
 
         // Act & Assert
         assertThrows(ProductNotFoundException.class, () -> orderService.placeOrder("bob", request));
+    }
+
+    @Test
+    void placeOrder_laterReservationFails_releasesEarlierReservations() {
+        PlaceOrderRequest request = new PlaceOrderRequest();
+        OrderItemRequest firstItem = new OrderItemRequest(1, 2);
+        OrderItemRequest secondItem = new OrderItemRequest(2, 1);
+        request.setItems(List.of(firstItem, secondItem));
+
+        when(productClient.reserveProduct(1, 2)).thenReturn(
+                new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 8));
+        when(productClient.reserveProduct(2, 1)).thenThrow(new ProductNotFoundException(2));
+
+        assertThrows(ProductNotFoundException.class, () -> orderService.placeOrder("bob", request));
+
+        verify(productClient).releaseProduct(1, 2);
+        verify(orderCreationService, never()).createOrder(any());
+    }
+
+    @Test
+    void placeOrder_orderCreationFails_releasesReservationsAndRethrowsFailure() {
+        PlaceOrderRequest request = new PlaceOrderRequest();
+        request.setItems(List.of(new OrderItemRequest(1, 2)));
+        IllegalStateException failure = new IllegalStateException("Could not save order");
+        when(productClient.reserveProduct(1, 2)).thenReturn(
+                new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 8));
+        when(orderCreationService.createOrder(any())).thenThrow(failure);
+
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> orderService.placeOrder("bob", request));
+
+        assertSame(failure, thrown);
+        verify(productClient).releaseProduct(1, 2);
+    }
+
+    @Test
+    void placeOrder_compensationFails_keepsOriginalFailureAndContinuesReleasing() {
+        PlaceOrderRequest request = new PlaceOrderRequest();
+        request.setItems(List.of(new OrderItemRequest(1, 2), new OrderItemRequest(2, 1)));
+        IllegalStateException orderFailure = new IllegalStateException("Could not save order");
+        IllegalStateException releaseFailure = new IllegalStateException("Product service unavailable");
+        when(productClient.reserveProduct(1, 2)).thenReturn(
+                new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 8));
+        when(productClient.reserveProduct(2, 1)).thenReturn(
+                new ProductInfo(2, "Side", "Description", "Sides", new BigDecimal("50.00"), 8));
+        when(orderCreationService.createOrder(any())).thenThrow(orderFailure);
+        doThrow(releaseFailure).when(productClient).releaseProduct(2, 1);
+
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class, () -> orderService.placeOrder("bob", request));
+
+        assertSame(orderFailure, thrown);
+        assertArrayEquals(new Throwable[]{releaseFailure}, thrown.getSuppressed());
+        verify(productClient).releaseProduct(2, 1);
+        verify(productClient).releaseProduct(1, 2);
     }
 
     @Test

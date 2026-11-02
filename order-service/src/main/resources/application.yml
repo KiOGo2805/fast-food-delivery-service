@@ -55,4 +55,4 @@ services:
   product-service:
     url: ${PRODUCT_SERVICE_URL:http://localhost:8082}
     public-url: ${PRODUCT_SERVICE_PUBLIC_URL:http://localhost:8082}
-    api-key: ${PRODUCT_SERVICE_API_KEY:}
+    api-key: ${PRODUCT_SERVICE_API_KEY:12345}

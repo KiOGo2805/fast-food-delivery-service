@@ -177,4 +177,19 @@ class ProductServiceTest {
         verify(productRepository, never()).save(any());
     }
 
+    @Test
+    void release_restoresReservedStock() {
+        Product product = new Product();
+        product.setId(1);
+        product.setStockQuantity(3);
+        ProductResponse response = new ProductResponse();
+        when(productRepository.findById(1)).thenReturn(Optional.of(product));
+        when(productRepository.save(product)).thenReturn(product);
+        when(productMapper.toResponse(product)).thenReturn(response);
+
+        assertSame(response, productService.release(1, 2));
+        assertEquals(5, product.getStockQuantity());
+        verify(productRepository).save(product);
+    }
+
 }

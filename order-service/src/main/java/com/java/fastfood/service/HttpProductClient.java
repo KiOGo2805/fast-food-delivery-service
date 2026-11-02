@@ -45,4 +45,13 @@ public class HttpProductClient implements ProductClient {
             throw new InsufficientStockException(error.productId(), error.requested(), error.available());
         }
     }
+
+    @Override
+    public void releaseProduct(Integer productId, int quantity) {
+        restClient.post()
+                .uri("/api/internal/products/{id}/release?quantity={quantity}", productId, quantity)
+                .header("X-Internal-Api-Key", apiKey)
+                .retrieve()
+                .toBodilessEntity();
+    }
 }
