@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="001-create-menu-items-table" author="course">
+        <createTable tableName="menu_items">
+            <column name="id" type="INT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(511)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="price" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="stock_quantity" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex indexName="idx_menu_items_category" tableName="menu_items">
+            <column name="category"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="002-seed-menu-items" author="course">
+        <insert tableName="menu_items">
+            <column name="name" value="Чікен рол"/>
+            <column name="description" value="Смачний рол з куркою"/>
+            <column name="category" value="Роли"/>
+            <column name="price" valueNumeric="120.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+        <insert tableName="menu_items">
+            <column name="name" value="Гриль-бургер"/>
+            <column name="description" value="Бургер на грилі"/>
+            <column name="category" value="Бургери"/>
+            <column name="price" valueNumeric="150.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+        <insert tableName="menu_items">
+            <column name="name" value="Чизбургер"/>
+            <column name="description" value="Класичний чизбургер"/>
+            <column name="category" value="Бургери"/>
+            <column name="price" valueNumeric="90.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+        <insert tableName="menu_items">
+            <column name="name" value="Нагетси"/>
+            <column name="description" value="Курячі нагетси"/>
+            <column name="category" value="Снеки"/>
+            <column name="price" valueNumeric="80.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+        <insert tableName="menu_items">
+            <column name="name" value="Картопля фрі"/>
+            <column name="description" value="Хрустка картопля фрі"/>
+            <column name="category" value="Снеки"/>
+            <column name="price" valueNumeric="60.00"/>
+            <column name="stock_quantity" valueNumeric="100"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

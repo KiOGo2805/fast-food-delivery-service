@@ -1,89 +1,93 @@
 # Fast Food Delivery Service
 
-A robust Spring Boot application for managing a fast-food delivery service, featuring product management, order processing, and integration with Keycloak for security.
+The repository is a Maven multi-module build containing two independently runnable Spring Boot services:
 
-## 🚀 Features
+- `product-service` owns the product catalog and stock, listens on port `8082`, and uses the `products_db` schema.
+- `order-service` owns orders, listens on port `8081`, and uses the `orders_db` schema. It reserves stock through the product service's internal HTTP API; it has no Maven dependency on `product-service`.
 
-- **Product Management**: CRUD operations for products with validation.
-- **Order Processing**: Place orders, track status, and manage order items.
-- **Security**: OAuth2 and JWT-based security using Keycloak.
-- **AOP Support**: Custom annotations for execution time logging, result logging, and store status checks.
-- **Async Operations**: Asynchronous processing for order details.
-- **Database Migrations**: Liquibase for managed database schema changes.
-- **Containerization**: Docker Compose integration for local development (MySQL, Keycloak).
-- **Quality Assurance**: Integrated JaCoCo for code coverage and WireMock for integration testing.
+Both modules have their own entry point, configuration, tests, and Dockerfile. The root POM aggregates the modules and contains shared build settings and test dependencies.
 
-## 🛠 Tech Stack
+## Requirements
 
-- **Java**: 21
-- **Framework**: Spring Boot 3.5.16
-- **Database**: MySQL 8.0
-- **Migration**: Liquibase
-- **Security**: Spring Security (OAuth2 / JWT / Keycloak)
-- **Mapping**: MapStruct
-- **Utilities**: Lombok
-- **Testing**: JUnit 5, Mockito, WireMock, Jacoco
-- **Infrastructure**: Docker Compose
+- Java 21+
+- Maven 3.9+
+- Docker Compose
 
-## 📋 Prerequisites
+## Build and test
 
-- **Java 21** or higher
-- **Maven 3.9+**
-- **Docker & Docker Compose**
+Run the complete reactor from the repository root:
 
-## 🏁 Getting Started
-
-### 1. Start Infrastructure
-Use Docker Compose to launch MySQL and Keycloak:
 ```bash
-docker-compose up -d
+mvn verify
 ```
-- **MySQL**: Accessible on port `3307`.
-- **Keycloak**: Accessible on port `8080`. The `course-realm.json` is automatically imported.
 
-### 2. Configure Environment
-The application is pre-configured to connect to the Docker containers via `src/main/resources/application.yml`.
+Inspect either service's dependency tree independently:
 
-### 3. Build and Run
 ```bash
-mvn clean install
-mvn spring-boot:run
+mvn -pl order-service dependency:tree
+mvn -pl product-service dependency:tree
 ```
-The server will start on `http://localhost:8081`.
 
-## 🔌 API Endpoints
+## Local development
 
-### Products
-- `GET /api/products` - List all products
-- `GET /api/products/{id}` - Get product by ID
-- `POST /api/products` - Create new product
-- `PUT /api/products/{id}` - Update product
-- `DELETE /api/products/{id}` - Delete product (Admin only)
-- `GET /api/products/info` - Get client info (custom annotation demo)
+From the repository root, remove the old containers and MySQL volume if you want to reset the local databases. **`down -v` permanently deletes the data stored in the Compose volumes.**
 
-### Orders
-- `POST /api/orders` - Place a new order
-- `GET /api/orders/mine` - View current user's orders
-- `GET /api/orders/{id}` - Get order details
-- `PATCH /api/orders/{id}/status` - Update order status (Admin only)
-- `GET /api/orders` - List all orders (Admin only)
-- `GET /api/orders/{id}/async-details` - Get order details asynchronously
+```powershell
+docker compose down -v
+$env:PRODUCT_SERVICE_API_KEY = "local-dev-change-this-key"
+docker compose up -d --build
+```
 
-## 🧩 Custom Annotations & AOP
+This starts MySQL, Keycloak, `product-service`, and `order-service`. On a fresh MySQL volume, the initialization script creates `orders_db` and `products_db` and grants the configured `user` account access. The services wait for MySQL's health check before starting.
 
-The project includes several custom annotations to simplify cross-cutting concerns:
+Keycloak is configured with `http://localhost:8080` as its canonical issuer. This keeps the token issuer consistent when the browser authenticates through `localhost` and the services contact Keycloak over Docker's internal network.
 
-- `@ExecutionTime`: Logs the execution time of a method.
-- `@LogResult`: Logs the return value of a method.
-- `@RequireStoreOpen`: Ensures the store is "open" before proceeding (demonstrates AOP logic).
-- `@ClientInfo`: Custom argument resolver to inject client information into controllers.
-- `@PostCreated`: Custom status mapping for creation endpoints.
+Check startup and follow the service logs:
 
-## 🧪 Testing & Quality
+```powershell
+docker compose ps
+docker compose logs -f mysql product-service order-service
+```
 
-- **Run Tests**: `mvn test`
-- **Coverage**: JaCoCo reports are generated in `target/site/jacoco/index.html` after running `mvn verify`.
-- **WireMock**: Used for simulating external services in integration tests.
+Open the order-service UI at `http://localhost:8081/store.html`, the product API at `http://localhost:8082/api/products`, and Keycloak at `http://localhost:8080`. MySQL is available on host port `3307`. Use `Ctrl+C` to stop following logs; containers keep running. To stop containers but preserve the databases, run `docker compose down` (without `-v`).
 
-## 📜 Documentation
-Additional configuration examples (e.g., Jacoco) can be found in the `docs/` folder.
+For an existing volume where the databases were not initialized, either reset it with the commands above (this erases all database data), or create both databases and grant permissions without deleting the volume:
+
+```powershell
+docker compose exec -T mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS orders_db; CREATE DATABASE IF NOT EXISTS products_db; GRANT ALL PRIVILEGES ON orders_db.* TO 'user'@'%'; GRANT ALL PRIVILEGES ON products_db.* TO 'user'@'%';"
+```
+
+## Docker images
+
+Build each image from the repository root:
+
+```bash
+docker build -f product-service/Dockerfile -t fastfood-product-service .
+docker build -f order-service/Dockerfile -t fastfood-order-service .
+```
+
+The Compose configuration sets the internal service URLs and ports. For deployment, provide a unique `PRODUCT_SERVICE_API_KEY`, configure external database credentials, and adjust the browser-facing URLs and allowed origin.
+
+## API
+
+### Products (`http://localhost:8082`)
+
+- `GET /api/products` — list products
+- `GET /api/products/{id}` — get a product
+- `POST /api/products` — create a product (admin)
+- `PUT /api/products/{id}` — update a product (admin)
+- `DELETE /api/products/{id}` — delete a product (admin)
+- `GET /api/products/info` — client information demo
+
+### Orders (`http://localhost:8081`)
+
+- `POST /api/orders` — place an order
+- `GET /api/orders/mine` — view current user's orders
+- `GET /api/orders/{id}` — get order details
+- `PATCH /api/orders/{id}/status` — update order status (admin)
+- `GET /api/orders` — list all orders (admin)
+- `GET /api/orders/{id}/async-details` — get order details asynchronously
+
+## Testing and quality
+
+Run tests for all services with `mvn test`; `mvn verify` also packages both runnable applications. JaCoCo reports are available under each module's `target/site/jacoco/`.

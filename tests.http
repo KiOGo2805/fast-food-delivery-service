@@ -22,16 +22,17 @@ grant_type = password
 
 ###
 @host = http://localhost:8081
+@productHost = http://localhost:8082
 
 ### Products - List All
-GET {{host}}/api/products
+GET {{productHost}}/api/products
 
 ### =========================================
 ### 1. СТВОРЕННЯ ПРОДУКТУ
 ### =========================================
 
 ### 1.1. Юзер намагається створити (Очікуємо: 403 Forbidden)
-POST {{host}}/api/products
+POST {{productHost}}/api/products
 Authorization: Bearer {{user_token}}
 Content-Type: application/json
 
@@ -45,7 +46,7 @@ Content-Type: application/json
 
 ### 1.2. Адмін створює (Очікуємо: 201 Created або 200 OK)
 # Зверни увагу на ID створеного продукту у відповіді (наприклад, 15), щоб підставити його нижче!
-POST {{host}}/api/products
+POST {{productHost}}/api/products
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 
@@ -63,7 +64,7 @@ Content-Type: application/json
 ### =========================================
 
 ### 2.1. Юзер намагається оновити (Очікуємо: 403 Forbidden)
-PUT {{host}}/api/products/6
+PUT {{productHost}}/api/products/6
 Authorization: Bearer {{user_token}}
 Content-Type: application/json
 
@@ -76,7 +77,7 @@ Content-Type: application/json
 }
 
 ### 2.2. Адмін оновлює (Очікуємо: 200 OK)
-PUT {{host}}/api/products/6
+PUT {{productHost}}/api/products/6
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 
@@ -141,11 +142,11 @@ Authorization: Bearer {{admin_token}}
 ### =========================================
 
 ### 6.1. Юзер намагається видалити продукт (Очікуємо: 403 Forbidden)
-DELETE {{host}}/api/products/15
+DELETE {{productHost}}/api/products/15
 Authorization: Bearer {{user_token}}
 
 ### 6.2. Адмін видаляє продукт (Очікуємо: 204 No Content)
-DELETE {{host}}/api/products/15
+DELETE {{productHost}}/api/products/15
 Authorization: Bearer {{admin_token}}
 
 ### =========================================
