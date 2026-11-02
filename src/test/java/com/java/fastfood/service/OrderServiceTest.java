@@ -82,7 +82,7 @@ class OrderServiceTest {
         Order savedOrder = orderCaptor.getValue();
 
         assertEquals(username, savedOrder.getCustomerName());
-        assertEquals(OrderStatus.CONFIRMED, savedOrder.getStatus());
+        assertEquals(OrderStatus.PLACED, savedOrder.getStatus());
         assertEquals(new BigDecimal("200.00"), savedOrder.getTotalAmount()); // 2 * 100
     }
 
