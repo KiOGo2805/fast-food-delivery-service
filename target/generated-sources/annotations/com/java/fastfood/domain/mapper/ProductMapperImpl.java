@@ -9,8 +9,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-10-30T14:48:16+0200",
-    comments = "version: 1.6.3, compiler: Eclipse JDT (IDE) 3.46.200.v20261008-1115, environment: Java 25.0.4.1 (Eclipse Adoptium)"
+    date = "2026-11-02T12:51:55+0200",
+    comments = "version: 1.6.3, compiler: javac, environment: Java 21.0.12.1 (Microsoft)"
 )
 @Component
 public class ProductMapperImpl implements ProductMapper {
@@ -23,10 +23,10 @@ public class ProductMapperImpl implements ProductMapper {
 
         ProductResponse productResponse = new ProductResponse();
 
-        productResponse.setCategory( product.getCategory() );
-        productResponse.setDescription( product.getDescription() );
         productResponse.setId( product.getId() );
         productResponse.setName( product.getName() );
+        productResponse.setDescription( product.getDescription() );
+        productResponse.setCategory( product.getCategory() );
         productResponse.setPrice( product.getPrice() );
         productResponse.setStockQuantity( product.getStockQuantity() );
 
@@ -41,9 +41,9 @@ public class ProductMapperImpl implements ProductMapper {
 
         Product product = new Product();
 
-        product.setCategory( request.getCategory() );
-        product.setDescription( request.getDescription() );
         product.setName( request.getName() );
+        product.setDescription( request.getDescription() );
+        product.setCategory( request.getCategory() );
         product.setPrice( request.getPrice() );
         product.setStockQuantity( request.getStockQuantity() );
 
@@ -56,14 +56,14 @@ public class ProductMapperImpl implements ProductMapper {
             return;
         }
 
-        if ( request.getCategory() != null ) {
-            product.setCategory( request.getCategory() );
+        if ( request.getName() != null ) {
+            product.setName( request.getName() );
         }
         if ( request.getDescription() != null ) {
             product.setDescription( request.getDescription() );
         }
-        if ( request.getName() != null ) {
-            product.setName( request.getName() );
+        if ( request.getCategory() != null ) {
+            product.setCategory( request.getCategory() );
         }
         if ( request.getPrice() != null ) {
             product.setPrice( request.getPrice() );

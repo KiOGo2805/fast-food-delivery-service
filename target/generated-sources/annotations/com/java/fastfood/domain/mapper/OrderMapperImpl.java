@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-10-30T14:48:16+0200",
-    comments = "version: 1.6.3, compiler: Eclipse JDT (IDE) 3.46.200.v20261008-1115, environment: Java 25.0.4.1 (Eclipse Adoptium)"
+    date = "2026-11-02T12:51:55+0200",
+    comments = "version: 1.6.3, compiler: javac, environment: Java 21.0.12.1 (Microsoft)"
 )
 @Component
 public class OrderMapperImpl implements OrderMapper {
@@ -29,15 +29,15 @@ public class OrderMapperImpl implements OrderMapper {
 
         OrderResponse orderResponse = new OrderResponse();
 
-        orderResponse.setCreatedAt( order.getCreatedAt() );
-        orderResponse.setCustomerEmail( order.getCustomerEmail() );
-        orderResponse.setCustomerName( order.getCustomerName() );
-        orderResponse.setDeliveryAddress( order.getDeliveryAddress() );
         orderResponse.setId( order.getId() );
         orderResponse.setItems( orderItemListToOrderItemResponseList( order.getItems() ) );
-        orderResponse.setNeedsCutlery( order.getNeedsCutlery() );
-        orderResponse.setStatus( order.getStatus() );
         orderResponse.setTotalAmount( order.getTotalAmount() );
+        orderResponse.setStatus( order.getStatus() );
+        orderResponse.setCustomerName( order.getCustomerName() );
+        orderResponse.setCustomerEmail( order.getCustomerEmail() );
+        orderResponse.setDeliveryAddress( order.getDeliveryAddress() );
+        orderResponse.setNeedsCutlery( order.getNeedsCutlery() );
+        orderResponse.setCreatedAt( order.getCreatedAt() );
 
         return orderResponse;
     }
