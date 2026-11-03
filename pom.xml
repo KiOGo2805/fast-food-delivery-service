@@ -19,6 +19,7 @@
     <description>Multi-module fast-food delivery services</description>
 
     <modules>
+        <module>common</module>
         <module>product-service</module>
         <module>order-service</module>
     </modules>
@@ -71,6 +72,13 @@
                                 <version>${mapstruct.version}</version>
                             </path>
                         </annotationProcessorPaths>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <argLine>-XX:+EnableDynamicAgentLoading -Xshare:off</argLine>
                     </configuration>
                 </plugin>
                 <plugin>

@@ -1,11 +1,11 @@
 # Fast Food Delivery Service
 
-The repository is a Maven multi-module build containing two independently runnable Spring Boot services:
+The repository is a Maven multi-module build containing a shared `common` module and two independently runnable Spring Boot services:
 
 - `product-service` owns the product catalog and stock, listens on port `8082`, and uses the `products_db` schema.
 - `order-service` owns orders, listens on port `8081`, and uses the `orders_db` schema. It reserves stock through the product service's internal HTTP API and releases completed reservations if order creation fails; it has no Maven dependency on `product-service`.
 
-Both modules have their own entry point, configuration, tests, and Dockerfile. The root POM aggregates the modules and contains shared build settings and test dependencies.
+Both services have their own entry point, configuration, tests, and Dockerfile. The `common` module contains classes shared by the services. The root POM aggregates all modules and contains shared build settings and test dependencies.
 
 ## Requirements
 
