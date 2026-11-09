@@ -1,75 +1,26 @@
 services:
-  keycloak:
-    image: quay.io/keycloak/keycloak:25.0
-    command: start-dev --import-realm
-    environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_HOSTNAME: http://localhost:8080
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./keycloak/course-realm.json:/opt/keycloak/data/import/course-realm.json:ro
-
   mysql:
     image: mysql:8.0
+    container_name: fastfood-mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
     environment:
-      MYSQL_DATABASE: fastfood_db
       MYSQL_ROOT_PASSWORD: root
       MYSQL_USER: user
       MYSQL_PASSWORD: password
-    ports:
-      - "3307:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./database/init:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
+      - ./database/init:/docker-entrypoint-initdb.d
 
-  product-service:
-    build:
-      context: .
-      dockerfile: product-service/Dockerfile
-    environment:
-      PRODUCT_DATABASE_URL: jdbc:mysql://mysql:3306/products_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      DATABASE_USERNAME: user
-      DATABASE_PASSWORD: password
-      PRODUCT_SERVICE_API_KEY: ${PRODUCT_SERVICE_API_KEY:?Set PRODUCT_SERVICE_API_KEY before starting Docker Compose}
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/certs
-      ORDER_SERVICE_PUBLIC_ORIGIN: http://localhost:8081
-    ports:
-      - "8082:8082"
-    depends_on:
-      mysql:
-        condition: service_healthy
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: fastfood-keycloak
     restart: unless-stopped
-
-  order-service:
-    build:
-      context: .
-      dockerfile: order-service/Dockerfile
-    environment:
-      ORDER_DATABASE_URL: jdbc:mysql://mysql:3306/orders_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      DATABASE_USERNAME: user
-      DATABASE_PASSWORD: password
-      PRODUCT_SERVICE_URL: http://product-service:8082
-      PRODUCT_SERVICE_PUBLIC_URL: http://localhost:8082
-      PRODUCT_SERVICE_API_KEY: ${PRODUCT_SERVICE_API_KEY:?Set PRODUCT_SERVICE_API_KEY before starting Docker Compose}
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/certs
-      KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/token
-      KEYCLOAK_USER_INFO_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/userinfo
-      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/certs
     ports:
-      - "8081:8081"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      product-service:
-        condition: service_started
-    restart: unless-stopped
-
-volumes:
-  mysql_data:
+      - "8080:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import
