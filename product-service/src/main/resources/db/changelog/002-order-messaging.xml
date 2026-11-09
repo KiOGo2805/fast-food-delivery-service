@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="002-create-product-outbox" author="course">
+        <createTable tableName="product_outbox_events">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payload" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sent_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="003-create-processed-order-messages" author="course">
+        <createTable tableName="processed_order_messages">
+            <column name="message_id" type="VARCHAR(64)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="processed_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="004-create-product-order-reservations" author="course">
+        <createTable tableName="product_order_reservations">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="product_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint
+                tableName="product_order_reservations"
+                columnNames="order_id,product_id"
+                constraintName="uk_product_order_reservation"/>
+    </changeSet>
+
+    <changeSet id="005-create-product-order-status-projection" author="course">
+        <createTable tableName="product_order_status">
+            <column name="order_id" type="INT">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

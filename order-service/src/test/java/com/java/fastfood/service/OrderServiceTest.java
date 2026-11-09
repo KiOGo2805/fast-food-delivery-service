@@ -3,13 +3,10 @@ package com.java.fastfood.service;
 import com.java.fastfood.domain.dto.OrderItemRequest;
 import com.java.fastfood.domain.dto.OrderResponse;
 import com.java.fastfood.domain.dto.PlaceOrderRequest;
-import com.java.fastfood.domain.dto.ProductInfo;
 import com.java.fastfood.domain.enums.OrderStatus;
 import com.java.fastfood.domain.mapper.OrderMapper;
 import com.java.fastfood.domain.model.Order;
-import com.java.fastfood.exception.InsufficientStockException;
 import com.java.fastfood.exception.OrderNotFoundException;
-import com.java.fastfood.exception.ProductNotFoundException;
 import com.java.fastfood.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,8 +28,6 @@ import static org.mockito.Mockito.*;
 class OrderServiceTest {
 
     @Mock
-    private ProductClient productClient;
-    @Mock
     private OrderCreationService orderCreationService;
     @Mock
     private OrderRepository orderRepository;
@@ -45,152 +40,26 @@ class OrderServiceTest {
     private OrderService orderService;
 
     @Test
-    void placeOrder_standardQuantity_createsOrderAndReservesStock() {
-        // Arrange
+    void placeOrder_createsPendingOrderAndPublishesThroughCreationService() {
         String username = "bob";
         PlaceOrderRequest request = new PlaceOrderRequest();
         request.setDeliveryAddress("Street 1");
         request.setNeedsCutlery(true);
-
-        OrderItemRequest itemRequest = new OrderItemRequest();
-        itemRequest.setProductId(1);
-        itemRequest.setQuantity(2); // Менше порогу знижки (5)
-        request.setItems(List.of(itemRequest));
-
-        when(productClient.reserveProduct(1, 2)).thenReturn(
-                new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 8));
+        request.setItems(List.of(new OrderItemRequest(1, 2), new OrderItemRequest(2, 1)));
         when(orderCreationService.createOrder(any(Order.class))).thenReturn(new OrderResponse());
 
-        // Act
         OrderResponse result = orderService.placeOrder(username, request);
 
-        // Assert
         assertNotNull(result);
-
-        verify(productClient).reserveProduct(1, 2);
-
-        // Перевірка створення замовлення та суми
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderCreationService).createOrder(orderCaptor.capture());
         Order savedOrder = orderCaptor.getValue();
-
         assertEquals(username, savedOrder.getCustomerName());
-        assertEquals(OrderStatus.PLACED, savedOrder.getStatus());
-        assertEquals(new BigDecimal("200.00"), savedOrder.getTotalAmount()); // 2 * 100
-        assertEquals(1, savedOrder.getItems().getFirst().getProductId());
-        assertEquals("Meal", savedOrder.getItems().getFirst().getProductName());
-    }
-
-    @Test
-    void placeOrder_bulkQuantity_appliesDiscount() {
-        // Arrange
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        OrderItemRequest itemRequest = new OrderItemRequest();
-        itemRequest.setProductId(1);
-        itemRequest.setQuantity(5); // Поріг знижки 10%
-        request.setItems(List.of(itemRequest));
-
-        when(productClient.reserveProduct(1, 5)).thenReturn(
-                new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 5));
-        when(orderCreationService.createOrder(any(Order.class))).thenReturn(new OrderResponse());
-
-        // Act
-        orderService.placeOrder("bob", request);
-
-        // Assert
-        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
-        verify(orderCreationService).createOrder(orderCaptor.capture());
-
-        // 5 * 100 = 500; знижка 10% = 50; Разом = 450.00
-        assertEquals(new BigDecimal("450.0000"), orderCaptor.getValue().getTotalAmount());
-    }
-
-    @Test
-    void placeOrder_insufficientStock_throwsException() {
-        // Arrange
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        OrderItemRequest itemRequest = new OrderItemRequest();
-        itemRequest.setProductId(1);
-        itemRequest.setQuantity(15); // Запит більший за наявність
-        request.setItems(List.of(itemRequest));
-
-        when(productClient.reserveProduct(1, 15))
-                .thenThrow(new InsufficientStockException(1, 15, 10));
-
-        // Act & Assert
-        assertThrows(InsufficientStockException.class, () -> orderService.placeOrder("bob", request));
-        verify(orderRepository, never()).save(any());
-        verify(productClient, never()).releaseProduct(any(), anyInt());
-    }
-
-    @Test
-    void placeOrder_productNotFound_throwsException() {
-        // Arrange
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        OrderItemRequest itemRequest = new OrderItemRequest();
-        itemRequest.setProductId(99);
-        itemRequest.setQuantity(1);
-        request.setItems(List.of(itemRequest));
-
-        when(productClient.reserveProduct(99, 1)).thenThrow(new ProductNotFoundException(99));
-
-        // Act & Assert
-        assertThrows(ProductNotFoundException.class, () -> orderService.placeOrder("bob", request));
-    }
-
-    @Test
-    void placeOrder_laterReservationFails_releasesEarlierReservations() {
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        OrderItemRequest firstItem = new OrderItemRequest(1, 2);
-        OrderItemRequest secondItem = new OrderItemRequest(2, 1);
-        request.setItems(List.of(firstItem, secondItem));
-
-        when(productClient.reserveProduct(1, 2)).thenReturn(
-                new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 8));
-        when(productClient.reserveProduct(2, 1)).thenThrow(new ProductNotFoundException(2));
-
-        assertThrows(ProductNotFoundException.class, () -> orderService.placeOrder("bob", request));
-
-        verify(productClient).releaseProduct(1, 2);
-        verify(orderCreationService, never()).createOrder(any());
-    }
-
-    @Test
-    void placeOrder_orderCreationFails_releasesReservationsAndRethrowsFailure() {
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setItems(List.of(new OrderItemRequest(1, 2)));
-        IllegalStateException failure = new IllegalStateException("Could not save order");
-        when(productClient.reserveProduct(1, 2)).thenReturn(
-                new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 8));
-        when(orderCreationService.createOrder(any())).thenThrow(failure);
-
-        IllegalStateException thrown = assertThrows(
-                IllegalStateException.class, () -> orderService.placeOrder("bob", request));
-
-        assertSame(failure, thrown);
-        verify(productClient).releaseProduct(1, 2);
-    }
-
-    @Test
-    void placeOrder_compensationFails_keepsOriginalFailureAndContinuesReleasing() {
-        PlaceOrderRequest request = new PlaceOrderRequest();
-        request.setItems(List.of(new OrderItemRequest(1, 2), new OrderItemRequest(2, 1)));
-        IllegalStateException orderFailure = new IllegalStateException("Could not save order");
-        IllegalStateException releaseFailure = new IllegalStateException("Product service unavailable");
-        when(productClient.reserveProduct(1, 2)).thenReturn(
-                new ProductInfo(1, "Meal", "Description", "Mains", new BigDecimal("100.00"), 8));
-        when(productClient.reserveProduct(2, 1)).thenReturn(
-                new ProductInfo(2, "Side", "Description", "Sides", new BigDecimal("50.00"), 8));
-        when(orderCreationService.createOrder(any())).thenThrow(orderFailure);
-        doThrow(releaseFailure).when(productClient).releaseProduct(2, 1);
-
-        IllegalStateException thrown = assertThrows(
-                IllegalStateException.class, () -> orderService.placeOrder("bob", request));
-
-        assertSame(orderFailure, thrown);
-        assertArrayEquals(new Throwable[]{releaseFailure}, thrown.getSuppressed());
-        verify(productClient).releaseProduct(2, 1);
-        verify(productClient).releaseProduct(1, 2);
+        assertEquals(OrderStatus.PENDING, savedOrder.getStatus());
+        assertEquals(BigDecimal.ZERO, savedOrder.getTotalAmount());
+        assertEquals(0, savedOrder.getItems().getFirst().getLineNumber());
+        assertEquals(1, savedOrder.getItems().get(1).getLineNumber());
+        assertEquals("Pending product details", savedOrder.getItems().getFirst().getProductName());
     }
 
     @Test

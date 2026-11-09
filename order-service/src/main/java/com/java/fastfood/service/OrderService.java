@@ -1,7 +1,6 @@
 package com.java.fastfood.service;
 
 import com.java.fastfood.domain.dto.OrderItemRequest;
-import com.java.fastfood.domain.dto.ProductInfo;
 import com.java.fastfood.domain.dto.OrderResponse;
 import com.java.fastfood.domain.dto.PlaceOrderRequest;
 import com.java.fastfood.domain.enums.OrderStatus;
@@ -12,13 +11,14 @@ import com.java.fastfood.exception.OrderNotFoundException;
 import com.java.fastfood.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -31,70 +31,33 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderService {
 
-    private static final int BULK_DISCOUNT_THRESHOLD = 5;
-    private static final BigDecimal BULK_DISCOUNT_RATE = new BigDecimal("0.10");
-
-    private final ProductClient productClient;
     private final OrderCreationService orderCreationService;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final ExternalServiceSim externalServiceSim;
 
     public OrderResponse placeOrder(String customerUsername, PlaceOrderRequest request) {
-        List<ReservedProduct> reservations = new ArrayList<>();
-        try {
-            Order order = new Order();
-            order.setCustomerName(customerUsername);
-            order.setCustomerEmail(customerUsername + "@example.com");
-            order.setDeliveryAddress(request.getDeliveryAddress());
-            order.setNeedsCutlery(request.getNeedsCutlery());
-            order.setCreatedAt(OffsetDateTime.now());
-            order.setStatus(OrderStatus.PLACED);
+        Order order = new Order();
+        order.setCustomerName(customerUsername);
+        order.setCustomerEmail(customerUsername + "@example.com");
+        order.setDeliveryAddress(request.getDeliveryAddress());
+        order.setNeedsCutlery(request.getNeedsCutlery());
+        order.setCreatedAt(OffsetDateTime.now());
+        order.setStatus(OrderStatus.PENDING);
+        order.setTotalAmount(BigDecimal.ZERO);
 
-            BigDecimal total = BigDecimal.ZERO;
-            for (OrderItemRequest itemRequest : request.getItems()) {
-                ProductInfo product = productClient.reserveProduct(
-                        itemRequest.getProductId(), itemRequest.getQuantity());
-                reservations.add(new ReservedProduct(itemRequest.getProductId(), itemRequest.getQuantity()));
-
-                BigDecimal unitPrice = product.price();
-                total = total.add(calculateLineTotal(unitPrice, itemRequest.getQuantity()));
-
-                OrderItem item = new OrderItem();
-                item.setProductId(product.id());
-                item.setProductName(product.name());
-                item.setQuantity(itemRequest.getQuantity());
-                item.setUnitPrice(unitPrice);
-                order.addItem(item);
-            }
-
-            order.setTotalAmount(total);
-            return orderCreationService.createOrder(order);
-        } catch (RuntimeException exception) {
-            releaseReservations(reservations, exception);
-            throw exception;
+        for (int lineNumber = 0; lineNumber < request.getItems().size(); lineNumber++) {
+            OrderItemRequest itemRequest = request.getItems().get(lineNumber);
+            OrderItem item = new OrderItem();
+            item.setLineNumber(lineNumber);
+            item.setProductId(itemRequest.getProductId());
+            item.setProductName("Pending product details");
+            item.setQuantity(itemRequest.getQuantity());
+            item.setUnitPrice(BigDecimal.ZERO);
+            order.addItem(item);
         }
-    }
 
-    private void releaseReservations(List<ReservedProduct> reservations, RuntimeException cause) {
-        for (int i = reservations.size() - 1; i >= 0; i--) {
-            ReservedProduct reservation = reservations.get(i);
-            try {
-                productClient.releaseProduct(reservation.productId(), reservation.quantity());
-            } catch (RuntimeException compensationException) {
-                log.error(
-                        "Failed to release {} units of product {} after order creation failed",
-                        reservation.quantity(),
-                        reservation.productId(),
-                        compensationException);
-                if (compensationException != cause) {
-                    cause.addSuppressed(compensationException);
-                }
-            }
-        }
-    }
-
-    private record ReservedProduct(Integer productId, int quantity) {
+        return orderCreationService.createOrder(order);
     }
 
     @Transactional(readOnly = true)
@@ -116,19 +79,16 @@ public class OrderService {
         return orderMapper.toResponse(order);
     }
 
-    private BigDecimal calculateLineTotal(BigDecimal unitPrice, int quantity) {
-        BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
-        if (quantity >= BULK_DISCOUNT_THRESHOLD) {
-            return subtotal.subtract(subtotal.multiply(BULK_DISCOUNT_RATE));
-        }
-        return subtotal;
-    }
-
     @Transactional
     public void deleteOrder(Integer orderID) {
         Order order = orderRepository.findById(orderID)
                 .orElseThrow(() -> new OrderNotFoundException(orderID));
 
+        if (order.getStatus() == OrderStatus.PENDING
+                || order.getStatus() == OrderStatus.PLACED
+                || order.getStatus() == OrderStatus.CONFIRMED) {
+            orderCreationService.recordCancellation(order);
+        }
         orderRepository.delete(order);
     }
 
@@ -136,7 +96,12 @@ public class OrderService {
     public void updateOrderStatus(Integer orderID, OrderStatus newStatus) {
         Order order = orderRepository.findById(orderID)
                 .orElseThrow(() -> new OrderNotFoundException(orderID));
+        if (order.getStatus() == OrderStatus.PENDING && newStatus != OrderStatus.DECLINED) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT, "Order status cannot change before stock reservation completes");
+        }
 
+        orderCreationService.recordStatusChange(order, newStatus);
         order.setStatus(newStatus);
         orderRepository.save(order);
     }
@@ -215,6 +180,7 @@ public class OrderService {
         }
         for (Order order : orders) {
             order.setStatus(OrderStatus.CONFIRMED);
+            orderCreationService.recordStatusChange(order, OrderStatus.CONFIRMED);
             orderRepository.save(order);
             log.info("Order ID: {} status updated from {} to CONFIRMED", order.getId(), currentStatus);
         }

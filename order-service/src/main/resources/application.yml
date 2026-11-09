@@ -7,11 +7,16 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME:fastfood}
+    password: ${RABBITMQ_PASSWORD:fastfood}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
     listener:
       simple:
-        auto-startup: ${RABBITMQ_LISTENER_ENABLED:false}
+        auto-startup: ${RABBITMQ_LISTENER_ENABLED:true}
+        default-requeue-rejected: true
   quartz:
     job-store-type: jdbc
     jdbc:
@@ -24,7 +29,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/realms/course-realm
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/course-realm}
       client:
         registration:
           keycloak:
@@ -61,6 +66,4 @@ spring:
 
 services:
   product-service:
-    url: ${PRODUCT_SERVICE_URL:http://localhost:8082}
     public-url: ${PRODUCT_SERVICE_PUBLIC_URL:http://localhost:8082}
-    api-key: ${PRODUCT_SERVICE_API_KEY:12345}

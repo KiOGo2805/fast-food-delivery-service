@@ -35,6 +35,9 @@ public class OrderItem {
     @Column(name = "product_id", nullable = false)
     private Integer productId;
 
+    @Column(name = "line_number", nullable = false)
+    private int lineNumber;
+
     @Column(name = "product_name", nullable = false)
     private String productName;
 

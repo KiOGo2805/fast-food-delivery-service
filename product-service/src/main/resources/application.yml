@@ -7,16 +7,22 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME:fastfood}
+    password: ${RABBITMQ_PASSWORD:fastfood}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
     listener:
       simple:
-        auto-startup: ${RABBITMQ_LISTENER_ENABLED:false}
+        auto-startup: ${RABBITMQ_LISTENER_ENABLED:true}
+        default-requeue-rejected: true
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/course-realm
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/course-realm}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8080/realms/course-realm/protocol/openid-connect/certs}
   datasource:
     url: ${PRODUCT_DATABASE_URL:jdbc:mysql://localhost:3307/products_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
     username: ${DATABASE_USERNAME:user}
@@ -32,6 +38,3 @@ spring:
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/changelog-master.xml
-
-internal:
-  api-key: ${PRODUCT_SERVICE_API_KEY:12345}

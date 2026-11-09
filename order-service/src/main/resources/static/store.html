@@ -298,7 +298,7 @@
       await loadProducts();
       await loadMyOrders();
       if(isAdmin) await loadAllOrders();
-      show('Замовлення успішно оформлено!');
+      show(`Замовлення #${(await res.json()).id} створено. Статус і підсумкова ціна оновляться після обробки брокером повідомлень; перевірте список замовлень трохи пізніше.`);
     } else {
       const err = await res.text();
       show(`Помилка створення замовлення: ${res.status}\n${err}`);
@@ -354,13 +354,16 @@
       <td>₴${o.totalAmount}</td>
       <td>${getStatusBadge(o.status)}</td>
       <td>
-        <select id="statusSelect-${o.id}">
-          <option value="PENDING" ${o.status==='PENDING'?'selected':''}>PENDING</option>
+        <select id="statusSelect-${o.id}" ${o.status==='PENDING'?'disabled title="Очікується резервування товарів"':''}>
+          ${o.status==='PENDING'?'<option value="PENDING" selected>PENDING</option>':''}
+          <option value="PLACED" ${o.status==='PLACED'?'selected':''}>PLACED</option>
           <option value="CONFIRMED" ${o.status==='CONFIRMED'?'selected':''}>CONFIRMED</option>
-          <option value="DELIVERED" ${o.status==='DELIVERED'?'selected':''}>DELIVERED</option>
-          <option value="CANCELLED" ${o.status==='CANCELLED'?'selected':''}>CANCELLED</option>
+          <option value="DECLINED" ${o.status==='DECLINED'?'selected':''}>DECLINED</option>
+          <option value="IN_PROCESS" ${o.status==='IN_PROCESS'?'selected':''}>IN_PROCESS</option>
+          <option value="DELIVERY" ${o.status==='DELIVERY'?'selected':''}>DELIVERY</option>
+          <option value="COMPLETED" ${o.status==='COMPLETED'?'selected':''}>COMPLETED</option>
         </select>
-        <button onclick="updateStatus(${o.id})">💾</button>
+        <button onclick="updateStatus(${o.id})" ${o.status==='PENDING'?'disabled':''}>💾</button>
       </td>
       <td><button class="btn-danger" onclick="deleteOrder(${o.id})">Видалити</button></td>
     `;
@@ -405,7 +408,8 @@
   }
 
   function getStatusBadge(status) {
-    let color = status === 'DELIVERED' ? 'green' : status === 'CANCELLED' ? 'red' : 'orange';
+    let color = status === 'CONFIRMED' || status === 'COMPLETED' ? 'green'
+      : status === 'DECLINED' ? 'red' : 'orange';
     return `<span style="color:${color}; font-weight:bold;">${status}</span>`;
   }
 

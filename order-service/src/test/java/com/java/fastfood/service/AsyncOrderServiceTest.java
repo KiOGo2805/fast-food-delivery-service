@@ -25,9 +25,6 @@ public class AsyncOrderServiceTest {
     private ExternalServiceSim externalServiceSim;
 
     @MockitoBean
-    private ProductClient productClient;
-
-    @MockitoBean
     private OrderCreationService orderCreationService;
 
     @MockitoBean
