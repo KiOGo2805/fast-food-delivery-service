@@ -4,6 +4,14 @@ server:
 spring:
   application:
     name: order-service
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        auto-startup: ${RABBITMQ_LISTENER_ENABLED:false}
   quartz:
     job-store-type: jdbc
     jdbc:

@@ -7,5 +7,6 @@
 
     <include file="db/changelog/001-initial-data.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/003-quartz.xml"/>
+    <include file="db/changelog/004-outbox.xml"/>
 
 </databaseChangeLog>
