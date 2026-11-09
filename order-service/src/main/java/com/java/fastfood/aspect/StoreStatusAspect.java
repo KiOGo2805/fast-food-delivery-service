@@ -19,7 +19,7 @@ public class StoreStatusAspect {
 
         LocalTime now = getCurrentTime();
 
-        if (now.isBefore(LocalTime.of(8, 0)) || now.isAfter(LocalTime.of(22, 0))) {
+        if (now.isBefore(LocalTime.of(8, 0)) || now.isAfter(LocalTime.of(20, 0))) {
             log.warn("Store is closed. Blocking execution.");
             throw new IllegalStateException("Sorry, the restaurant is currently closed.");
         }
