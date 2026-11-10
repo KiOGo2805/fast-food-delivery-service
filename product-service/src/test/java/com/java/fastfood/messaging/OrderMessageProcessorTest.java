@@ -27,8 +27,6 @@ class OrderMessageProcessorTest {
     @Mock
     private ProductOrderReservationRepository reservationRepository;
     @Mock
-    private ProductOrderStatusProjectionRepository statusProjectionRepository;
-    @Mock
     private ProcessedOrderMessageRepository processedOrderMessageRepository;
     @Mock
     private ProductOutboxEventRepository productOutboxEventRepository;

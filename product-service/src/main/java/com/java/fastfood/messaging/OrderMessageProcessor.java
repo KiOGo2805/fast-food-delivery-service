@@ -25,7 +25,6 @@ public class OrderMessageProcessor {
 
     private final ProductStockRepository productStockRepository;
     private final ProductOrderReservationRepository reservationRepository;
-    private final ProductOrderStatusProjectionRepository statusProjectionRepository;
     private final ProcessedOrderMessageRepository processedOrderMessageRepository;
     private final ProductOutboxEventRepository productOutboxEventRepository;
     private final ObjectMapper objectMapper;
@@ -84,10 +83,6 @@ public class OrderMessageProcessor {
                 snapshots,
                 failureReason,
                 OffsetDateTime.now());
-        statusProjectionRepository.save(new ProductOrderStatusProjection(
-                event.orderId(),
-                failureReason == null ? "CONFIRMED" : "DECLINED",
-                OffsetDateTime.now()));
         try {
             productOutboxEventRepository.save(new ProductOutboxEvent(
                     "OrderProcessingResultEvent",

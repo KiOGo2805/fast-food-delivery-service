@@ -202,3 +202,53 @@ Authorization: Bearer {{admin_token}}
 ### 4. Очікування обмежене в часі (TimeoutException)
 GET {{host}}/api/orders/test-timeout
 Authorization: Bearer {{admin_token}}
+### =========================================
+
+### ЛАБОРАТОРНА №8: RabbitMQ — оформлення замовлення
+### Запускати запити послідовно згори вниз.
+### Замовлення можна створювати лише коли ресторан відкритий (08:00-20:00).
+### =========================================
+
+### 1. Отримати токен користувача Bob
+POST http://localhost:8080/realms/course-realm/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=backend-app&username=bob&password=bob123&grant_type=password
+
+> {% client.global.set("lab8_user_token", response.body.access_token); %}
+
+### 2. Перевірити товари та залишки; нижче використовується товар з ID 1
+GET {{productHost}}/api/products
+
+### 3. Створити замовлення (ID з відповіді збережеться автоматично)
+POST {{host}}/api/orders
+Authorization: Bearer {{lab8_user_token}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 1
+    }
+  ],
+  "deliveryAddress": "Lab 8 demo address",
+  "needsCutlery": true
+}
+
+> {% client.global.set("lab8_order_id", response.body.id); %}
+
+### 4. Перевірити одразу; статус зазвичай PENDING, але може вже завершитися
+GET {{host}}/api/orders/{{lab8_order_id}}
+Authorization: Bearer {{lab8_user_token}}
+
+### 5. Повторити через кілька секунд; очікується CONFIRMED або DECLINED
+GET {{host}}/api/orders/{{lab8_order_id}}
+Authorization: Bearer {{lab8_user_token}}
+
+### 6. Перевірити залишок товару після обробки повідомлення
+GET {{productHost}}/api/products/1
+
+### 7. Переглянути замовлення користувача Bob
+GET {{host}}/api/orders/mine
+Authorization: Bearer {{lab8_user_token}}

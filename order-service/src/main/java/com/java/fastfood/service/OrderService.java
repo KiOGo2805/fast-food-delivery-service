@@ -101,7 +101,9 @@ public class OrderService {
                     HttpStatus.CONFLICT, "Order status cannot change before stock reservation completes");
         }
 
-        orderCreationService.recordStatusChange(order, newStatus);
+        if (newStatus == OrderStatus.DECLINED) {
+            orderCreationService.recordStatusChange(order, newStatus);
+        }
         order.setStatus(newStatus);
         orderRepository.save(order);
     }
@@ -180,7 +182,6 @@ public class OrderService {
         }
         for (Order order : orders) {
             order.setStatus(OrderStatus.CONFIRMED);
-            orderCreationService.recordStatusChange(order, OrderStatus.CONFIRMED);
             orderRepository.save(order);
             log.info("Order ID: {} status updated from {} to CONFIRMED", order.getId(), currentStatus);
         }

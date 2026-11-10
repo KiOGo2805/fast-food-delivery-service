@@ -16,9 +16,6 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
     @Query("SELECT DISTINCT o FROM Order o JOIN FETCH o.items oi WHERE o.customerName = :username")
     List<Order> findByCustomerName(@Param("username") String username);
 
-    @Query("SELECT COUNT(o) > 0 FROM Order o JOIN o.items oi WHERE oi.productId = :productId")
-    boolean existsByProductId(@Param("productId") Integer productId);
-
     List<Order> findByStatus(OrderStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -17,8 +17,7 @@ public class OrderCommandListener {
     public void handle(OrderCommandEvent event) {
         switch (event.action()) {
             case PLACED -> orderMessageProcessor.process(event);
-            case CANCELLED -> orderLifecycleProcessor.cancel(event);
-            case STATUS_CHANGED -> orderLifecycleProcessor.updateStatus(event);
+            case CANCELLED, STATUS_CHANGED -> orderLifecycleProcessor.release(event);
         }
     }
 }

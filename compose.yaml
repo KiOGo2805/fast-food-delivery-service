@@ -45,3 +45,57 @@ services:
     command: start-dev --import-realm
     volumes:
       - ./keycloak:/opt/keycloak/data/import
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    ports:
+      - "8081:8081"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: fastfood
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-fastfood}
+      RABBITMQ_LISTENER_ENABLED: ${RABBITMQ_LISTENER_ENABLED:-true}
+      ORDER_DATABASE_URL: jdbc:mysql://mysql:3306/orders_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DATABASE_USERNAME: user
+      DATABASE_PASSWORD: password
+      KEYCLOAK_ISSUER_URI: http://localhost:8080/realms/course-realm
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/certs
+      KEYCLOAK_AUTHORIZATION_URI: http://localhost:8080/realms/course-realm/protocol/openid-connect/auth
+      KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/token
+      KEYCLOAK_USER_INFO_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/userinfo
+      PRODUCT_SERVICE_PUBLIC_URL: http://localhost:8082
+
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    restart: on-failure
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    ports:
+      - "8082:8082"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: fastfood
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-fastfood}
+      RABBITMQ_LISTENER_ENABLED: ${RABBITMQ_LISTENER_ENABLED:-true}
+      PRODUCT_DATABASE_URL: jdbc:mysql://mysql:3306/products_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DATABASE_USERNAME: user
+      DATABASE_PASSWORD: password
+      KEYCLOAK_ISSUER_URI: http://localhost:8080/realms/course-realm
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/certs

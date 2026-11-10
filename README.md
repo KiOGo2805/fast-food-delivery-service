@@ -30,21 +30,21 @@ mvn -pl product-service dependency:tree
 
 ## Local development
 
-The Compose file starts only the infrastructure: MySQL, RabbitMQ, and Keycloak. Start it from the repository root:
+Compose starts MySQL, RabbitMQ, Keycloak, and both application services. Start the stack from the repository root:
 
 ```powershell
 docker compose up -d
 ```
 
-On first startup, the MySQL initialization script creates `orders_db` and `products_db` and grants the configured `user` account access. The Compose file does not declare a named MySQL volume: the image uses an anonymous volume. `docker compose down` leaves that volume behind, but a later `up` may create a new one instead of reusing it. To reset and remove the current volume, run `docker compose down -v`; **this permanently deletes its data**.
+On first startup, the MySQL initialization script creates `orders_db` and `products_db` and grants the configured account access. The Compose file does not declare a named MySQL volume: the image uses an anonymous volume. `docker compose down` leaves that volume behind, but a later `up` may create a new one instead of reusing it. To reset and remove the current volume, run `docker compose down -v`; **this permanently deletes its data**.
 
-Keycloak imports the realm configuration from `./keycloak` and is available at `http://localhost:8080`. Its default admin credentials are `admin` / `admin`. The application services are not part of Compose: run `product-service` and `order-service` from the IDE. Their local defaults connect to MySQL at `localhost:3307`, RabbitMQ at `localhost:5672`, and Keycloak at `localhost:8080`. Start the infrastructure before launching the applications.
+Keycloak imports the realm configuration from `./keycloak` and is available at `http://localhost:8080`. Its default admin credentials are `admin` / `admin`. The application containers use Compose service DNS names (`mysql`, `rabbitmq`, and `keycloak`) to connect to dependencies. For IDE runs, each service defaults to `localhost` and the published host ports.
 
-Check the infrastructure status and logs. RabbitMQ's management UI is available at `http://localhost:15672` (credentials: `fastfood` / `fastfood` by default):
+Check container status and logs. RabbitMQ's management UI is available at `http://localhost:15672` (credentials: `fastfood` / `fastfood` by default):
 
 ```powershell
 docker compose ps
-docker compose logs -f mysql rabbitmq keycloak
+docker compose logs -f mysql rabbitmq keycloak order-service product-service
 ```
 
 After starting the applications, open the order-service UI at `http://localhost:8081/store.html` and the product API at `http://localhost:8082/api/products`. MySQL is exposed on host port `3307`. Use `Ctrl+C` to stop following logs; containers keep running. To stop the infrastructure while preserving MySQL data, run `docker compose down` (without `-v`).
@@ -64,13 +64,23 @@ docker build -f product-service/Dockerfile -t fastfood-product-service .
 docker build -f order-service/Dockerfile -t fastfood-order-service .
 ```
 
-The Dockerfiles build standalone application images; Compose does not currently run those images. When running the services from an IDE, the broker default is `localhost:5672`. The applications accept `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, and `RABBITMQ_PASSWORD` environment variables if you need to override the defaults. Set `RABBITMQ_PASSWORD` to a non-demo password outside local development.
+The Dockerfiles build the application images used by Compose. Inside Compose, `RABBITMQ_HOST=rabbitmq`; in the IDE, the default is `localhost`. The applications accept `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME`, and `RABBITMQ_PASSWORD` environment variables. Set `RABBITMQ_PASSWORD` to a non-demo password outside local development.
 
 ## Order event flow
 
 `POST /api/orders` stores an order with status `PENDING` and an outbox message in the same database transaction. The order service periodically publishes committed outbox records to RabbitMQ. The product service atomically checks and reserves all requested quantities, then writes a result event to its own outbox. The order service consumes that result and stores product names, price snapshots, the total, and the final `CONFIRMED` status. If a product is missing or stock is insufficient, no stock is reserved and the order becomes `DECLINED`.
 
-The order response is therefore initially pending; query `GET /api/orders/{id}` or `GET /api/orders/mine` to see the eventual status and calculated total. The order service also publishes cancellation and status-change commands; product-service releases active reservations on cancellation and keeps an order-status projection. Both services use durable queues, publisher confirms, transactional outboxes, and persistent processed-message records so broker outages and redelivery do not lose or apply an order twice. `RABBITMQ_LISTENER_ENABLED=false` can be used to stop a consumer temporarily while its durable queue continues holding messages.
+The order response is therefore initially pending; query `GET /api/orders/{id}` or `GET /api/orders/mine` to see the eventual status and calculated total. The order service publishes cancellation and decline commands when an active reservation must be released. Both services use durable queues, publisher confirms, transactional outboxes, and persistent processed-message records so broker outages and redelivery do not lose or apply an order twice.
+
+To exercise the durable-queue scenario, stop the listeners, create orders, then start the listeners again. The messages remain in RabbitMQ until their consumers restart:
+
+```powershell
+$env:RABBITMQ_LISTENER_ENABLED = "false"
+docker compose up -d
+# Create two orders, then:
+$env:RABBITMQ_LISTENER_ENABLED = "true"
+docker compose up -d
+```
 
 ## API
 
