@@ -9,7 +9,7 @@ import com.java.fastfood.messaging.OrderAction;
 import com.java.fastfood.messaging.OrderCommandEvent;
 import com.java.fastfood.messaging.OrderLineRequest;
 import com.java.fastfood.outbox.OutboxEvent;
-import com.java.fastfood.outbox.OutboxEventRepository;
+import com.java.fastfood.repository.OutboxEventRepository;
 import com.java.fastfood.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

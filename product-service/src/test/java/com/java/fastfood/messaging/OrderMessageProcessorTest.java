@@ -2,7 +2,9 @@ package com.java.fastfood.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java.fastfood.domain.model.Product;
-import com.java.fastfood.outbox.ProductOutboxEventRepository;
+import com.java.fastfood.repository.ProductOutboxEventRepository;
+import com.java.fastfood.repository.ProcessedOrderMessageRepository;
+import com.java.fastfood.repository.ProductOrderReservationRepository;
 import com.java.fastfood.repository.ProductStockRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

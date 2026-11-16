@@ -1,4 +1,4 @@
-package com.java.fastfood.messaging;
+package com.java.fastfood.configuration;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;

@@ -1,5 +1,7 @@
-package com.java.fastfood.outbox;
+package com.java.fastfood.repository;
 
+import com.java.fastfood.outbox.OutboxEvent;
+import com.java.fastfood.outbox.OutboxStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

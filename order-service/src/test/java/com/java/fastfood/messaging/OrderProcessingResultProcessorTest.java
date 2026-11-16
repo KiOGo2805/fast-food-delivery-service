@@ -4,7 +4,7 @@ import com.java.fastfood.domain.enums.OrderStatus;
 import com.java.fastfood.domain.model.Order;
 import com.java.fastfood.domain.model.OrderItem;
 import com.java.fastfood.inbox.ProcessedOrderResult;
-import com.java.fastfood.inbox.ProcessedOrderResultRepository;
+import com.java.fastfood.repository.ProcessedOrderResultRepository;
 import com.java.fastfood.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

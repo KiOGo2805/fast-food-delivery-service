@@ -3,6 +3,7 @@ package com.java.fastfood.outbox;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java.fastfood.messaging.OrderCommandEvent;
+import com.java.fastfood.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
