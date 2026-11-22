@@ -252,3 +252,138 @@ GET {{productHost}}/api/products/1
 ### 7. Переглянути замовлення користувача Bob
 GET {{host}}/api/orders/mine
 Authorization: Bearer {{lab8_user_token}}
+
+### Змінні середовища
+### Якщо order-service запущений у 2 інстансах на портах 8083-8084 — зміни 8081 на 8083
+@baseUrl = http://localhost:8083
+@keycloakUrl = http://localhost:8080/realms/course-realm/protocol/openid-connect/token
+
+### =====================================================================
+### 0. АВТОРИЗАЦІЯ (Keycloak course-realm)
+### =====================================================================
+
+### 0.1. Отримати токен звичайного користувача (bob)
+POST {{keycloakUrl}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id=backend-app&username=bob&password=bob123
+
+> {% client.global.set("token_bob", response.body.access_token); %}
+
+### 0.2. Отримати токен другого користувача / адміністратора (alice)
+POST {{keycloakUrl}}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password&client_id=backend-app&username=alice&password=alice123
+
+> {% client.global.set("token_alice", response.body.access_token); %}
+
+### =====================================================================
+### 1. КЛЮЧ ІДЕМПОТЕНТНОСТІ (Idempotency-Key)
+### =====================================================================
+
+### 1.1. Запит БЕЗ Idempotency-Key від bob
+### Запусти двічі -> щоразу створюється нове замовлення з новим ID
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token_bob}}
+Content-Type: application/json
+
+{
+  "deliveryAddress": "вул. Головна, 10",
+  "needsCutlery": false,
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ]
+}
+
+### 1.2. Перший запит З Idempotency-Key від bob -> HTTP 201 Created
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token_bob}}
+Idempotency-Key: lab10-order-key-1
+Content-Type: application/json
+
+{
+  "deliveryAddress": "вул. Університетська, 28",
+  "needsCutlery": true,
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ]
+}
+
+### 1.3. Повторний запит з ТИМ САМИМ ключем від bob
+### Має повернути той самий JSON і той самий order id без дублювання в БД
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token_bob}}
+Idempotency-Key: lab10-order-key-1
+Content-Type: application/json
+
+{
+  "deliveryAddress": "вул. Університетська, 28",
+  "needsCutlery": true,
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ]
+}
+
+### 1.4. Запит з ТИМ САМИМ ключем, але від alice
+### Має створитися окреме замовлення для alice (ключ прив'язаний до username)
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token_alice}}
+Idempotency-Key: lab10-order-key-1
+Content-Type: application/json
+
+{
+  "deliveryAddress": "вул. Кобилянської, 5",
+  "needsCutlery": false,
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ]
+}
+
+### 1.5. Перевірка замовлень bob (дубліката немає)
+GET {{baseUrl}}/api/orders/mine
+Authorization: Bearer {{token_bob}}
+
+### 1.6. Перевірка всіх замовлень через ADMIN-токен alice (видно окремі замовлення bob та alice)
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{token_alice}}
+
+### =====================================================================
+### 2. RESILIENCE4J (404 без Retry, Circuit Breaker OPEN -> 503, відновлення)
+### =====================================================================
+
+### 2.1. Неіснуючий товар -> HTTP 404 Not Found
+### У логах НЕ має бути спроб Retry, Circuit Breaker НЕ рахує це за збій
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token_bob}}
+Content-Type: application/json
+
+{
+  "deliveryAddress": "вул. Головна, 10",
+  "needsCutlery": false,
+  "items": [
+    { "productId": 999999, "quantity": 1 }
+  ]
+}
+
+### 2.2. Сценарій падіння product-service + перевірка, що 503 не кешується по Idempotency-Key
+### Крок А: у терміналі виконай -> docker compose stop product-service
+### Крок Б: надішли цей запит 5 разів (або 3 рази, якщо зменшив slidingWindowSize до 3):
+###         - кожен із цих запитів зробить 3 спроби Retry і поверне 503 ("Product service is unavailable")
+###         - після заповнення вікна Circuit Breaker перейде в OPEN
+### Крок В: надішли ще раз до спливу 10с -> миттєвий 503 ("Product lookup rejected: circuit breaker is OPEN") без Retry
+### Крок Г: виконай -> docker compose start product-service, почекай 10с і надішли знову з ТИМ САМИМ ключем:
+###         - вимикач пройде HALF_OPEN -> CLOSED
+###         - запит поверне 201 Created, бо попередні 503 не збереглися в idempotency_keys
+POST {{baseUrl}}/api/orders
+Authorization: Bearer {{token_bob}}
+Idempotency-Key: lab10-retry-after-503
+Content-Type: application/json
+
+{
+  "deliveryAddress": "вул. Головна, 10",
+  "needsCutlery": false,
+  "items": [
+    { "productId": 1, "quantity": 1 }
+  ]
+}
