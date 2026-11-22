@@ -1,9 +1,13 @@
 package com.java.fastfood.product.client;
 
+import com.java.fastfood.product.port.ProductAvailabilityLookup;
+import com.java.fastfood.product.port.ProductPriceLookup;
+import com.java.fastfood.product.port.ProductStockLookup;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
@@ -36,5 +40,14 @@ public class ProductLookupClientConfiguration {
         return io.grpc.ManagedChannelBuilder.forTarget(properties.getGrpcTarget())
                 .usePlaintext()
                 .build();
+    }
+
+    @Bean
+    @Primary
+    public ResilientProductLookupDecorator resilientProductLookupDecorator(
+            ProductPriceLookup priceDelegate,
+            ProductStockLookup stockDelegate,
+            ProductAvailabilityLookup availabilityDelegate) {
+        return new ResilientProductLookupDecorator(priceDelegate, stockDelegate, availabilityDelegate);
     }
 }
