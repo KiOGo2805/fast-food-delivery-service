@@ -10,5 +10,6 @@
     <include file="db/changelog/004-outbox.xml"/>
     <include file="db/changelog/005-order-result-inbox.xml"/>
     <include file="db/changelog/007-idempotency-keys.xml"/>
+    <include file="db/changelog/008-shedlock.xml"/>
 
 </databaseChangeLog>

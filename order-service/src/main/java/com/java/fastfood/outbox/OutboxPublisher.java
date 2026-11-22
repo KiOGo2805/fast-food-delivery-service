@@ -6,6 +6,7 @@ import com.java.fastfood.messaging.OrderCommandEvent;
 import com.java.fastfood.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -31,6 +32,7 @@ public class OutboxPublisher {
 
     @Transactional
     @Scheduled(fixedDelay = 5000)
+    @SchedulerLock(name = "OutboxPublisher_publishPendingEvents", lockAtLeastFor = "PT3S", lockAtMostFor = "PT30S")
     public void publishPendingEvents() {
         List<OutboxEvent> events = outboxEventRepository.findTop50ByStatusOrderByIdAsc(OutboxStatus.NEW);
         for (OutboxEvent event : events) {

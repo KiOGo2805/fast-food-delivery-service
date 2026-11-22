@@ -59,7 +59,7 @@ services:
       keycloak:
         condition: service_started
     ports:
-      - "8081:8081"
+      - "8083-8084:8081"
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USERNAME: fastfood
