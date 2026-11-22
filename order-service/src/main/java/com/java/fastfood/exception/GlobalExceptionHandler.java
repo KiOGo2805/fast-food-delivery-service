@@ -76,4 +76,12 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         return new ResponseEntity<>(new ApplicationErrorResponse(message), HttpStatus.BAD_REQUEST);
     }
+
+    @ExceptionHandler(ProductLookupCircuitOpenException.class)
+    public ResponseEntity<ApplicationErrorResponse> handle(ProductLookupCircuitOpenException ex) {
+        log.warn("ProductLookupCircuitOpenException: {}", ex.getMessage());
+        return new ResponseEntity<>(
+                new ApplicationErrorResponse("Product lookup rejected: circuit breaker is OPEN"),
+                HttpStatus.SERVICE_UNAVAILABLE);
+    }
 }
