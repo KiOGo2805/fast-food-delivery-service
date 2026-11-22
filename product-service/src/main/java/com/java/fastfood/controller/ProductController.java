@@ -49,6 +49,12 @@ public class ProductController {
         return productService.update(id, request);
     }
 
+    @PatchMapping("/{id}/availability")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ProductResponse setActive(@PathVariable Integer id, @RequestParam boolean active) {
+        return productService.setActive(id, active);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")

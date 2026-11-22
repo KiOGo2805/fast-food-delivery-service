@@ -6,6 +6,7 @@ import com.java.fastfood.domain.model.OrderItem;
 import com.java.fastfood.inbox.ProcessedOrderResult;
 import com.java.fastfood.repository.ProcessedOrderResultRepository;
 import com.java.fastfood.repository.OrderRepository;
+import com.java.fastfood.service.OrderPricing;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,9 +21,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class OrderProcessingResultProcessor {
-
-    private static final int BULK_DISCOUNT_THRESHOLD = 5;
-    private static final BigDecimal BULK_DISCOUNT_RATE = new BigDecimal("0.10");
 
     private final ProcessedOrderResultRepository processedResultRepository;
     private final OrderRepository orderRepository;
@@ -67,11 +65,7 @@ public class OrderProcessingResultProcessor {
             }
             item.setProductName(snapshot.productName());
             item.setUnitPrice(snapshot.unitPrice());
-            BigDecimal lineTotal = snapshot.unitPrice().multiply(BigDecimal.valueOf(snapshot.quantity()));
-            if (snapshot.quantity() >= BULK_DISCOUNT_THRESHOLD) {
-                lineTotal = lineTotal.subtract(lineTotal.multiply(BULK_DISCOUNT_RATE));
-            }
-            total = total.add(lineTotal);
+            total = total.add(OrderPricing.lineTotal(snapshot.unitPrice(), snapshot.quantity()));
         }
 
         order.setTotalAmount(total);

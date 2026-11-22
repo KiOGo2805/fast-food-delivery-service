@@ -68,3 +68,12 @@ spring:
 services:
   product-service:
     public-url: ${PRODUCT_SERVICE_PUBLIC_URL:http://localhost:8082}
+
+product:
+  client:
+    transport: ${PRODUCT_CLIENT_TRANSPORT:http}
+    http-base-url: ${PRODUCT_SERVICE_HTTP_URL:http://localhost:8082}
+    grpc-target: ${PRODUCT_SERVICE_GRPC_TARGET:localhost:9090}
+    connect-timeout-ms: ${PRODUCT_CLIENT_CONNECT_TIMEOUT_MS:1000}
+    read-timeout-ms: ${PRODUCT_CLIENT_READ_TIMEOUT_MS:2000}
+    deadline-ms: ${PRODUCT_CLIENT_DEADLINE_MS:2000}

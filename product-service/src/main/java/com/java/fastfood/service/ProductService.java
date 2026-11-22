@@ -7,6 +7,9 @@ import com.java.fastfood.domain.mapper.ProductMapper;
 import com.java.fastfood.domain.model.Product;
 import com.java.fastfood.exception.ProductNotFoundException;
 import com.java.fastfood.exception.ProductStockUnavailableException;
+import com.java.fastfood.lookup.ProductAvailability;
+import com.java.fastfood.lookup.ProductPrice;
+import com.java.fastfood.lookup.ProductStock;
 import com.java.fastfood.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,31 @@ public class ProductService {
     @Transactional(readOnly = true)
     public ProductResponse getById(Integer id) {
         return productMapper.toResponse(findOrThrow(id));
+    }
+
+    @Transactional(readOnly = true)
+    public ProductPrice getPrice(Integer id) {
+        Product product = findOrThrow(id);
+        return new ProductPrice(product.getId(), product.getPrice());
+    }
+
+    @Transactional(readOnly = true)
+    public ProductStock getStock(Integer id) {
+        Product product = findOrThrow(id);
+        return new ProductStock(product.getId(), product.getStockQuantity());
+    }
+
+    @Transactional(readOnly = true)
+    public ProductAvailability getAvailability(Integer id) {
+        Product product = findOrThrow(id);
+        return new ProductAvailability(product.getId(), product.isActive());
+    }
+
+    @Transactional
+    public ProductResponse setActive(Integer id, boolean active) {
+        Product product = findOrThrow(id);
+        product.setActive(active);
+        return productMapper.toResponse(productRepository.save(product));
     }
 
     @Transactional

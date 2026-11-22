@@ -73,6 +73,16 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handlesProductUnavailableException_asConflict() {
+        ResponseEntity<ApplicationErrorResponse> response =
+                handler.handle(new ProductUnavailableException(7));
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("Product is not available: 7", response.getBody().getMessage());
+    }
+
+    @Test
     void handlesMethodArgumentNotValidException_asBadRequest() throws NoSuchMethodException {
         Method method = GlobalExceptionHandlerTest.class.getDeclaredMethod("handlesMethodArgumentNotValidException_asBadRequest");
         MethodParameter parameter = new MethodParameter(method, -1);

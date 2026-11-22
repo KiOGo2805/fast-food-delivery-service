@@ -51,6 +51,10 @@ public class OrderMessageProcessor {
                 failureReason = "Product " + requested.getKey() + " does not exist";
                 break;
             }
+            if (!product.isActive()) {
+                failureReason = "Product " + product.getId() + " is not available";
+                break;
+            }
             if (product.getStockQuantity() < requested.getValue()) {
                 failureReason = "Insufficient stock for product " + product.getId();
                 break;

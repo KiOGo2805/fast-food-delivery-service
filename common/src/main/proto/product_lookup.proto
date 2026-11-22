@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.java.fastfood.contract.product";
+option java_outer_classname = "ProductLookupProto";
+
+service ProductLookupService {
+  rpc GetProductPrice (ProductLookupRequest) returns (ProductPriceResponse);
+  rpc GetProductStock (ProductLookupRequest) returns (ProductStockResponse);
+  rpc GetProductAvailability (ProductLookupRequest) returns (ProductAvailabilityResponse);
+}
+
+message ProductLookupRequest {
+  int32 product_id = 1;
+}
+
+message ProductPriceResponse {
+  int32 product_id = 1;
+  string price = 2;
+}
+
+message ProductStockResponse {
+  int32 product_id = 1;
+  int32 available_quantity = 2;
+}
+
+message ProductAvailabilityResponse {
+  int32 product_id = 1;
+  bool available = 2;
+}

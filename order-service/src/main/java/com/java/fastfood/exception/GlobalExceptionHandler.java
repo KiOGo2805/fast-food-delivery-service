@@ -34,6 +34,14 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(new ApplicationErrorResponse(ex), HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(ProductServiceUnavailableException.class)
+    public ResponseEntity<ApplicationErrorResponse> handle(ProductServiceUnavailableException ex) {
+        log.error("ProductServiceUnavailableException: ", ex);
+        return new ResponseEntity<>(
+                new ApplicationErrorResponse("Product service is unavailable"),
+                HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     @ExceptionHandler(OrderNotFoundException.class)
     public ResponseEntity<ApplicationErrorResponse> handle(OrderNotFoundException ex) {
         log.error("OrderNotFoundException: ", ex);
@@ -43,6 +51,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InsufficientStockException.class)
     public ResponseEntity<ApplicationErrorResponse> handle(InsufficientStockException ex) {
         log.error("InsufficientStockException: ", ex);
+        return new ResponseEntity<>(new ApplicationErrorResponse(ex), HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(ProductUnavailableException.class)
+    public ResponseEntity<ApplicationErrorResponse> handle(ProductUnavailableException ex) {
+        log.error("ProductUnavailableException: ", ex);
         return new ResponseEntity<>(new ApplicationErrorResponse(ex), HttpStatus.CONFLICT);
     }
 

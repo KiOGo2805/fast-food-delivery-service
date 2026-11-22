@@ -2,8 +2,8 @@
 
 The repository is a Maven multi-module build containing a shared `common` module and two independently runnable Spring Boot services:
 
-- `product-service` owns the product catalog and stock, listens on port `8082`, and uses the `products_db` schema.
-- `order-service` owns orders, listens on port `8081`, and uses the `orders_db` schema. Orders and stock reservations are coordinated asynchronously through RabbitMQ; there are no direct HTTP calls between these services.
+- `product-service` owns the product catalog and stock, listens on port `8082`, and uses the `products_db` schema. Its optional gRPC server listens on port `9090`.
+- `order-service` owns orders, listens on port `8081`, and uses the `orders_db` schema. Orders and stock reservations are coordinated asynchronously through RabbitMQ. Narrow product price, stock, and availability lookups are available over a configurable HTTP or gRPC client.
 
 Both services have their own entry point, configuration, tests, and Dockerfile. The `common` module contains classes shared by the services. The root POM aggregates all modules and contains shared build settings and test dependencies.
 
@@ -68,9 +68,27 @@ The Dockerfiles build the application images used by Compose. Inside Compose, `R
 
 ## Order event flow
 
-`POST /api/orders` stores an order with status `PENDING` and an outbox message in the same database transaction. The order service periodically publishes committed outbox records to RabbitMQ. The product service atomically checks and reserves all requested quantities, then writes a result event to its own outbox. The order service consumes that result and stores product names, price snapshots, the total, and the final `CONFIRMED` status. If a product is missing or stock is insufficient, no stock is reserved and the order becomes `DECLINED`.
+`POST /api/orders` first uses the configured product lookup client to check that each product is active, verify the currently available stock (aggregating duplicate product lines), and fetch prices. If those checks pass, it stores a `PENDING` order with a preliminary total and an outbox message in the same database transaction. The order service periodically publishes committed outbox records to RabbitMQ. The product service atomically checks and reserves all requested quantities, then writes a result event to its own outbox. The order service consumes that result and stores product names, authoritative price snapshots, the final total, and the final `CONFIRMED` status. If a product disappears or stock changes before reservation, the asynchronous result can still decline the order; the synchronous stock lookup is a pre-check, not a reservation.
 
 The order response is therefore initially pending; query `GET /api/orders/{id}` or `GET /api/orders/mine` to see the eventual status and calculated total. The order service publishes cancellation and decline commands when an active reservation must be released. Both services use durable queues, publisher confirms, transactional outboxes, and persistent processed-message records so broker outages and redelivery do not lose or apply an order twice.
+
+The order service also exposes authenticated synchronous lookup endpoints:
+`GET /api/product-lookups/{productId}/price`, `/stock`, and `/availability`.
+The matching product-service endpoints are internal REST routes under
+`/api/internal/products/{id}`. Missing products return HTTP 404 (or gRPC
+`NOT_FOUND`); inactive products are reported as unavailable. Order lookup
+failures map to HTTP 404 or 503.
+
+Select the order-service client with `PRODUCT_CLIENT_TRANSPORT=http` (default)
+or `grpc`. Configure `PRODUCT_SERVICE_HTTP_URL`,
+`PRODUCT_SERVICE_GRPC_TARGET`, `PRODUCT_CLIENT_CONNECT_TIMEOUT_MS`,
+`PRODUCT_CLIENT_READ_TIMEOUT_MS`, and `PRODUCT_CLIENT_DEADLINE_MS` as needed.
+The product gRPC server is disabled by default; enable it with
+`GRPC_SERVER_ENABLED=true` and set `GRPC_SERVER_PORT` if needed. To use gRPC
+in Compose, set both `PRODUCT_CLIENT_TRANSPORT=grpc` and
+`GRPC_SERVER_ENABLED=true`. Unknown
+transport values fail configuration validation rather than silently selecting
+a client.
 
 To exercise the durable-queue scenario, stop the listeners, create orders, then start the listeners again. The messages remain in RabbitMQ until their consumers restart:
 
@@ -88,6 +106,10 @@ docker compose up -d
 
 - `GET /api/products` — list products
 - `GET /api/products/{id}` — get a product
+- `GET /api/internal/products/{id}/price` — internal price lookup
+- `GET /api/internal/products/{id}/stock` — internal stock lookup
+- `GET /api/internal/products/{id}/availability` — internal availability lookup
+- `PATCH /api/products/{id}/availability?active=false` — enable or disable a product (admin)
 - `POST /api/products` — create a product (admin)
 - `PUT /api/products/{id}` — update a product (admin)
 - `DELETE /api/products/{id}` — delete a product (admin)

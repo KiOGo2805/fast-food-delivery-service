@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -18,6 +19,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -41,7 +44,7 @@ class OrderMessageProcessorTest {
     @Test
     void process_reservesStockOnceAndPersistsResult() throws Exception {
         Product product = new Product(
-                7, "Burger", "Description", "Mains", new BigDecimal("12.50"), 5);
+                7, "Burger", "Description", "Mains", new BigDecimal("12.50"), 5, true);
         when(productStockRepository.findByIdForUpdate(7)).thenReturn(Optional.of(product));
         when(objectMapper.writeValueAsString(any(OrderProcessingResultEvent.class))).thenReturn("{}");
         OrderCommandEvent event = new OrderCommandEvent(
@@ -70,5 +73,26 @@ class OrderMessageProcessorTest {
         processor.process(event);
 
         verifyNoInteractions(productStockRepository, reservationRepository, productOutboxEventRepository);
+    }
+
+    @Test
+    void process_inactiveProductDeclinesOrderWithoutReservingStock() throws Exception {
+        Product product = new Product(
+                7, "Burger", "Description", "Mains", new BigDecimal("12.50"), 5, false);
+        when(productStockRepository.findByIdForUpdate(7)).thenReturn(Optional.of(product));
+        when(objectMapper.writeValueAsString(any(OrderProcessingResultEvent.class))).thenReturn("{}");
+        OrderCommandEvent event = new OrderCommandEvent(
+                "message-2", 42, OrderAction.PLACED, null,
+                List.of(new OrderLineRequest(0, 7, 2)), OffsetDateTime.now());
+
+        processor.process(event);
+
+        ArgumentCaptor<OrderProcessingResultEvent> resultCaptor =
+                ArgumentCaptor.forClass(OrderProcessingResultEvent.class);
+        verify(objectMapper).writeValueAsString(resultCaptor.capture());
+        assertFalse(resultCaptor.getValue().accepted());
+        assertTrue(resultCaptor.getValue().failureReason().contains("not available"));
+        verify(productStockRepository, never()).saveAll(any());
+        verifyNoInteractions(reservationRepository);
     }
 }

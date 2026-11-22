@@ -74,6 +74,12 @@ services:
       KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/token
       KEYCLOAK_USER_INFO_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/userinfo
       PRODUCT_SERVICE_PUBLIC_URL: http://localhost:8082
+      PRODUCT_CLIENT_TRANSPORT: ${PRODUCT_CLIENT_TRANSPORT:-http}
+      PRODUCT_CLIENT_CONNECT_TIMEOUT_MS: ${PRODUCT_CLIENT_CONNECT_TIMEOUT_MS:-1000}
+      PRODUCT_CLIENT_READ_TIMEOUT_MS: ${PRODUCT_CLIENT_READ_TIMEOUT_MS:-2000}
+      PRODUCT_CLIENT_DEADLINE_MS: ${PRODUCT_CLIENT_DEADLINE_MS:-2000}
+      PRODUCT_SERVICE_HTTP_URL: ${PRODUCT_SERVICE_HTTP_URL:-http://product-service:8082}
+      PRODUCT_SERVICE_GRPC_TARGET: ${PRODUCT_SERVICE_GRPC_TARGET:-product-service:9090}
 
   product-service:
     build:
@@ -89,6 +95,7 @@ services:
         condition: service_started
     ports:
       - "8082:8082"
+      - "9090:9090"
     environment:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USERNAME: fastfood
@@ -99,3 +106,5 @@ services:
       DATABASE_PASSWORD: password
       KEYCLOAK_ISSUER_URI: http://localhost:8080/realms/course-realm
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/course-realm/protocol/openid-connect/certs
+      GRPC_SERVER_ENABLED: ${GRPC_SERVER_ENABLED:-false}
+      GRPC_SERVER_PORT: ${GRPC_SERVER_PORT:-9090}

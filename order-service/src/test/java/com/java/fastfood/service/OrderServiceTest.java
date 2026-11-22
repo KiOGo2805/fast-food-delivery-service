@@ -7,6 +7,11 @@ import com.java.fastfood.domain.enums.OrderStatus;
 import com.java.fastfood.domain.mapper.OrderMapper;
 import com.java.fastfood.domain.model.Order;
 import com.java.fastfood.exception.OrderNotFoundException;
+import com.java.fastfood.exception.InsufficientStockException;
+import com.java.fastfood.exception.ProductUnavailableException;
+import com.java.fastfood.product.port.ProductAvailabilityLookup;
+import com.java.fastfood.product.port.ProductPriceLookup;
+import com.java.fastfood.product.port.ProductStockLookup;
 import com.java.fastfood.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +40,12 @@ class OrderServiceTest {
     private OrderMapper orderMapper;
     @Mock
     private ExternalServiceSim externalServiceSim;
+    @Mock
+    private ProductAvailabilityLookup productAvailabilityLookup;
+    @Mock
+    private ProductStockLookup productStockLookup;
+    @Mock
+    private ProductPriceLookup productPriceLookup;
 
     @InjectMocks
     private OrderService orderService;
@@ -46,20 +57,81 @@ class OrderServiceTest {
         request.setDeliveryAddress("Street 1");
         request.setNeedsCutlery(true);
         request.setItems(List.of(new OrderItemRequest(1, 2), new OrderItemRequest(2, 1)));
+        when(productAvailabilityLookup.isAvailable(1)).thenReturn(true);
+        when(productAvailabilityLookup.isAvailable(2)).thenReturn(true);
+        when(productStockLookup.findAvailableStock(1)).thenReturn(10);
+        when(productStockLookup.findAvailableStock(2)).thenReturn(10);
+        when(productPriceLookup.findPrice(1)).thenReturn(new BigDecimal("10.00"));
+        when(productPriceLookup.findPrice(2)).thenReturn(new BigDecimal("5.00"));
         when(orderCreationService.createOrder(any(Order.class))).thenReturn(new OrderResponse());
 
         OrderResponse result = orderService.placeOrder(username, request);
 
         assertNotNull(result);
+        verify(productAvailabilityLookup).isAvailable(1);
+        verify(productAvailabilityLookup).isAvailable(2);
+        verify(productStockLookup).findAvailableStock(1);
+        verify(productStockLookup).findAvailableStock(2);
+        verify(productPriceLookup).findPrice(1);
+        verify(productPriceLookup).findPrice(2);
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderCreationService).createOrder(orderCaptor.capture());
         Order savedOrder = orderCaptor.getValue();
         assertEquals(username, savedOrder.getCustomerName());
         assertEquals(OrderStatus.PENDING, savedOrder.getStatus());
-        assertEquals(BigDecimal.ZERO, savedOrder.getTotalAmount());
+        assertEquals(new BigDecimal("25.00"), savedOrder.getTotalAmount());
         assertEquals(0, savedOrder.getItems().getFirst().getLineNumber());
         assertEquals(1, savedOrder.getItems().get(1).getLineNumber());
         assertEquals("Pending product details", savedOrder.getItems().getFirst().getProductName());
+        assertEquals(new BigDecimal("10.00"), savedOrder.getItems().getFirst().getUnitPrice());
+        assertEquals(new BigDecimal("5.00"), savedOrder.getItems().get(1).getUnitPrice());
+    }
+
+    @Test
+    void placeOrder_aggregatesDuplicateProductQuantitiesBeforeStockCheck() {
+        PlaceOrderRequest request = new PlaceOrderRequest();
+        request.setDeliveryAddress("Street 1");
+        request.setItems(List.of(new OrderItemRequest(1, 3), new OrderItemRequest(1, 3)));
+        when(productAvailabilityLookup.isAvailable(1)).thenReturn(true);
+        when(productStockLookup.findAvailableStock(1)).thenReturn(5);
+
+        assertThrows(InsufficientStockException.class, () -> orderService.placeOrder("bob", request));
+
+        verify(productStockLookup).findAvailableStock(1);
+        verifyNoInteractions(productPriceLookup);
+        verify(orderCreationService, never()).createOrder(any(Order.class));
+    }
+
+    @Test
+    void placeOrder_unavailableProductIsRejectedBeforeStockOrPricingLookups() {
+        PlaceOrderRequest request = new PlaceOrderRequest();
+        request.setDeliveryAddress("Street 1");
+        request.setItems(List.of(new OrderItemRequest(1, 1)));
+        when(productAvailabilityLookup.isAvailable(1)).thenReturn(false);
+
+        assertThrows(ProductUnavailableException.class, () -> orderService.placeOrder("bob", request));
+
+        verifyNoInteractions(productStockLookup, productPriceLookup);
+        verify(orderCreationService, never()).createOrder(any(Order.class));
+    }
+
+    @Test
+    void placeOrder_calculatesBulkDiscountInPreliminaryTotal() {
+        PlaceOrderRequest request = new PlaceOrderRequest();
+        request.setDeliveryAddress("Street 1");
+        request.setItems(List.of(new OrderItemRequest(1, 5)));
+        when(productAvailabilityLookup.isAvailable(1)).thenReturn(true);
+        when(productStockLookup.findAvailableStock(1)).thenReturn(5);
+        when(productPriceLookup.findPrice(1)).thenReturn(new BigDecimal("10.00"));
+        when(orderCreationService.createOrder(any(Order.class))).thenAnswer(invocation -> {
+            Order order = invocation.getArgument(0);
+            assertEquals(new BigDecimal("45.0000"), order.getTotalAmount());
+            return new OrderResponse();
+        });
+
+        orderService.placeOrder("bob", request);
+
+        verify(orderCreationService).createOrder(any(Order.class));
     }
 
     @Test

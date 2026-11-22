@@ -33,6 +33,15 @@ public class AsyncOrderServiceTest {
     @MockitoBean
     private com.java.fastfood.domain.mapper.OrderMapper orderMapper;
 
+    @MockitoBean
+    private com.java.fastfood.product.port.ProductAvailabilityLookup productAvailabilityLookup;
+
+    @MockitoBean
+    private com.java.fastfood.product.port.ProductStockLookup productStockLookup;
+
+    @MockitoBean
+    private com.java.fastfood.product.port.ProductPriceLookup productPriceLookup;
+
     @Test
     void testThreadNamePrefix() throws Exception {
         CompletableFuture<String> future = externalServiceSim.generateOrderInvoice(1);

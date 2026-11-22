@@ -38,6 +38,7 @@ class ProductMapperImplTest {
         assertThat(response.getCategory()).isEqualTo("Роли");
         assertThat(response.getPrice()).isEqualByComparingTo("120.00");
         assertThat(response.getStockQuantity()).isEqualTo(100);
+        assertThat(response.isActive()).isTrue();
     }
 
     @Test

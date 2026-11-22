@@ -229,7 +229,7 @@ Content-Type: application/json
   "items": [
     {
       "productId": 1,
-      "quantity": 1
+      "quantity": 200
     }
   ],
   "deliveryAddress": "Lab 8 demo address",

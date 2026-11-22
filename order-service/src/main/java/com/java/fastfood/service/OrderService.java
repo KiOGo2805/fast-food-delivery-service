@@ -7,7 +7,12 @@ import com.java.fastfood.domain.enums.OrderStatus;
 import com.java.fastfood.domain.mapper.OrderMapper;
 import com.java.fastfood.domain.model.Order;
 import com.java.fastfood.domain.model.OrderItem;
+import com.java.fastfood.exception.InsufficientStockException;
 import com.java.fastfood.exception.OrderNotFoundException;
+import com.java.fastfood.exception.ProductUnavailableException;
+import com.java.fastfood.product.port.ProductAvailabilityLookup;
+import com.java.fastfood.product.port.ProductPriceLookup;
+import com.java.fastfood.product.port.ProductStockLookup;
 import com.java.fastfood.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +24,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -35,8 +42,32 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final ExternalServiceSim externalServiceSim;
+    private final ProductAvailabilityLookup productAvailabilityLookup;
+    private final ProductStockLookup productStockLookup;
+    private final ProductPriceLookup productPriceLookup;
 
     public OrderResponse placeOrder(String customerUsername, PlaceOrderRequest request) {
+        Map<Integer, Integer> requestedQuantities = new LinkedHashMap<>();
+        for (OrderItemRequest item : request.getItems()) {
+            requestedQuantities.merge(item.getProductId(), item.getQuantity(), Math::addExact);
+        }
+
+        for (Map.Entry<Integer, Integer> requested : requestedQuantities.entrySet()) {
+            Integer productId = requested.getKey();
+            if (!productAvailabilityLookup.isAvailable(productId)) {
+                throw new ProductUnavailableException(productId);
+            }
+
+            int availableStock = productStockLookup.findAvailableStock(productId);
+            if (availableStock < requested.getValue()) {
+                throw new InsufficientStockException(productId, requested.getValue(), availableStock);
+            }
+        }
+
+        Map<Integer, BigDecimal> productPrices = new LinkedHashMap<>();
+        requestedQuantities.keySet().forEach(productId ->
+                productPrices.put(productId, productPriceLookup.findPrice(productId)));
+
         Order order = new Order();
         order.setCustomerName(customerUsername);
         order.setCustomerEmail(customerUsername + "@example.com");
@@ -53,7 +84,10 @@ public class OrderService {
             item.setProductId(itemRequest.getProductId());
             item.setProductName("Pending product details");
             item.setQuantity(itemRequest.getQuantity());
-            item.setUnitPrice(BigDecimal.ZERO);
+            BigDecimal unitPrice = productPrices.get(itemRequest.getProductId());
+            item.setUnitPrice(unitPrice);
+            order.setTotalAmount(order.getTotalAmount().add(
+                    OrderPricing.lineTotal(unitPrice, itemRequest.getQuantity())));
             order.addItem(item);
         }
 
