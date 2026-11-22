@@ -7,6 +7,7 @@ import com.java.fastfood.annotation.aop.RequireStoreOpen;
 import com.java.fastfood.domain.dto.OrderResponse;
 import com.java.fastfood.domain.dto.PlaceOrderRequest;
 import com.java.fastfood.domain.enums.OrderStatus;
+import com.java.fastfood.idempotency.IdempotencyService;
 import com.java.fastfood.security.CurrentUser;
 import com.java.fastfood.service.OrderService;
 import jakarta.validation.Valid;
@@ -25,13 +26,26 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final IdempotencyService idempotencyService;
 
     @PostCreated
     @ExecutionTime
     @RequireStoreOpen
-    public OrderResponse placeOrder(@Valid @RequestBody PlaceOrderRequest request,
-                                     @AuthenticationPrincipal CurrentUser user) {
-        return orderService.placeOrder(user.username(), request);
+    public OrderResponse placeOrder(
+            @Valid @RequestBody PlaceOrderRequest request,
+            @AuthenticationPrincipal CurrentUser user,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return orderService.placeOrder(user.username(), request);
+        }
+
+        return idempotencyService.execute(
+                user.username(),
+                idempotencyKey.trim(),
+                OrderResponse.class,
+                () -> orderService.placeOrder(user.username(), request)
+        );
     }
 
     @GetMapping("/mine")

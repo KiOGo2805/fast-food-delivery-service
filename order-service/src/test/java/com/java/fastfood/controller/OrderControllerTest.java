@@ -5,6 +5,7 @@ import com.java.fastfood.domain.dto.PlaceOrderRequest;
 import com.java.fastfood.domain.enums.OrderStatus;
 import com.java.fastfood.security.CurrentUser;
 import com.java.fastfood.service.OrderService;
+import com.java.fastfood.idempotency.IdempotencyService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -22,8 +23,11 @@ class OrderControllerTest {
     @Mock
     private OrderService orderService;
 
+    @Mock
+    private IdempotencyService idempotencyService;
+
     private OrderController controller() {
-        return new OrderController(orderService);
+        return new OrderController(orderService, idempotencyService);
     }
 
     private CurrentUser user(String username, boolean admin) {
@@ -37,7 +41,7 @@ class OrderControllerTest {
         CurrentUser user = user("alice", false);
         when(orderService.placeOrder("alice", request)).thenReturn(expected);
 
-        assertThat(controller().placeOrder(request, user)).isSameAs(expected);
+        assertThat(controller().placeOrder(request, user, null)).isSameAs(expected);
     }
 
     @Test
