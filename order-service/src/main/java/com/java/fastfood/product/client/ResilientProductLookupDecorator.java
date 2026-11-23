@@ -49,8 +49,6 @@ public class ResilientProductLookupDecorator
         return availabilityDelegate.isAvailable(productId);
     }
 
-    // --- Fallback лише для стану OPEN (CallNotPermittedException) ---
-
     @SuppressWarnings("unused")
     private BigDecimal findPriceFallback(Integer productId, CallNotPermittedException ex) {
         throw new ProductLookupCircuitOpenException(
@@ -68,8 +66,6 @@ public class ResilientProductLookupDecorator
         throw new ProductLookupCircuitOpenException(
                 "Circuit breaker is OPEN for isAvailable, productId=" + productId, ex);
     }
-
-    // --- Звичайні помилки виконання прокидаємо далі без підміни на 503 Circuit Open ---
 
     @SuppressWarnings("unused")
     private BigDecimal findPriceFallback(Integer productId, Throwable ex) throws Throwable {
